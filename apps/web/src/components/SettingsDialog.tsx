@@ -9,8 +9,9 @@ import {
   isCustomModel,
   renderModelOptions,
 } from './modelOptions';
-import { DEFAULT_NOTIFICATIONS, KNOWN_PROVIDERS } from '../state/config';
+import { DEFAULT_NOTIFICATIONS, DEFAULT_ORBIT, KNOWN_PROVIDERS } from '../state/config';
 import type { KnownProvider } from '../state/config';
+import { navigate as navigateRoute } from '../router';
 import {
   MAX_MAX_TOKENS,
   MIN_MAX_TOKENS,
@@ -38,6 +39,7 @@ export type SettingsSection =
   | 'execution'
   | 'media'
   | 'composio'
+  | 'orbit'
   | 'integrations'
   | 'language'
   | 'appearance'
@@ -574,6 +576,17 @@ export function SettingsDialog({
             </button>
             <button
               type="button"
+              className={`settings-nav-item${activeSection === 'orbit' ? ' active' : ''}`}
+              onClick={() => setActiveSection('orbit')}
+            >
+              <Icon name="orbit" size={18} />
+              <span>
+                <strong>Orbit</strong>
+                <small>Daily connector summary</small>
+              </span>
+            </button>
+            <button
+              type="button"
               className={`settings-nav-item${activeSection === 'integrations' ? ' active' : ''}`}
               onClick={() => setActiveSection('integrations')}
             >
@@ -1080,6 +1093,20 @@ export function SettingsDialog({
 
           {activeSection === 'composio' ? <ComposioSection cfg={cfg} setCfg={setCfg} /> : null}
 
+          {activeSection === 'orbit' ? (
+            <OrbitSection
+              cfg={cfg}
+              setCfg={setCfg}
+              onLeaveForOrbitProject={() => {
+                // Persist any in-flight Orbit edits (toggle / time) before
+                // navigating away so they aren't silently lost. onSave also
+                // closes the dialog, so the user lands directly on the
+                // /projects/orbit view where the agent run streams in.
+                onSave(cfg);
+              }}
+            />
+          ) : null}
+
           {activeSection === 'language' ? (
           <section className="settings-section">
             <div className="section-head">
@@ -1306,6 +1333,517 @@ function ComposioSection({
               : 'Keys are stored locally in the daemon and never sent through environment variables.'}
         </span>
       </label>
+    </section>
+  );
+}
+
+interface OrbitRunSummary {
+  id?: string;
+  startedAt?: string;
+  completedAt: string;
+  trigger?: 'manual' | 'scheduled';
+  connectorsChecked: number;
+  connectorsSucceeded: number;
+  connectorsFailed: number;
+  connectorsSkipped: number;
+  artifactId?: string | null;
+  artifactProjectId?: string | null;
+  /** Identifier of the daemon run that produced this summary. Useful for
+   *  log correlation; the live conversation lives at /projects/orbit. */
+  agentRunId?: string | null;
+  markdown: string;
+}
+
+/** Well-known project id the daemon uses for every Orbit run. Mirrors the
+ *  ORBIT_PROJECT_ID constant in apps/daemon/src/orbit.ts. Kept here so we
+ *  can build navigation URLs without round-tripping through the run
+ *  response — manual runs hit /api/orbit/run synchronously, but the agent
+ *  conversation gets created on the daemon side a moment after the POST
+ *  is dispatched, so we navigate optimistically and let ProjectView's
+ *  SSE reattach pick the in-flight run up. */
+const ORBIT_PROJECT_ID = 'orbit';
+
+interface OrbitStatusResponse {
+  running?: boolean;
+  nextRunAt?: string | null;
+  lastRun?: OrbitRunSummary | null;
+}
+
+function formatRelative(iso: string | undefined | null): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const diffMs = Date.now() - then;
+  const absMin = Math.round(Math.abs(diffMs) / 60_000);
+  if (absMin < 1) return 'just now';
+  if (absMin < 60) return `${diffMs < 0 ? 'in ' : ''}${absMin} min${absMin === 1 ? '' : 's'}${diffMs >= 0 ? ' ago' : ''}`;
+  const absHr = Math.round(absMin / 60);
+  if (absHr < 24) return `${diffMs < 0 ? 'in ' : ''}${absHr} hour${absHr === 1 ? '' : 's'}${diffMs >= 0 ? ' ago' : ''}`;
+  const absDay = Math.round(absHr / 24);
+  return `${diffMs < 0 ? 'in ' : ''}${absDay} day${absDay === 1 ? '' : 's'}${diffMs >= 0 ? ' ago' : ''}`;
+}
+
+function OrbitSection({
+  cfg,
+  setCfg,
+  onLeaveForOrbitProject,
+}: {
+  cfg: AppConfig;
+  setCfg: Dispatch<SetStateAction<AppConfig>>;
+  /** Called right before navigating to /projects/orbit so the parent dialog
+   *  can persist any unsaved Orbit edits and close itself. */
+  onLeaveForOrbitProject: () => void;
+}) {
+  const orbit = cfg.orbit ?? DEFAULT_ORBIT;
+  const [status, setStatus] = useState<OrbitStatusResponse | null>(null);
+  const [running, setRunning] = useState(false);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  // Once the user clicks Generate we close Settings and navigate away. The
+  // /api/orbit/run request keeps streaming in the background — its eventual
+  // resolution must not call setState on this unmounted component. The ref
+  // lets late-arriving handlers no-op without React warnings. */
+  const isMountedRef = useRef(true);
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
+
+  const updateOrbit = (patch: Partial<NonNullable<AppConfig['orbit']>>) => {
+    setCfg((curr) => ({
+      ...curr,
+      orbit: { ...(curr.orbit ?? DEFAULT_ORBIT), ...patch },
+    }));
+  };
+
+  const refreshStatus = async () => {
+    try {
+      const response = await fetch('/api/orbit/status');
+      if (!response.ok) return;
+      if (!isMountedRef.current) return;
+      setStatus(await response.json() as OrbitStatusResponse);
+    } catch {
+      // Daemon may be offline in API-only development; keep local controls usable.
+    }
+  };
+
+  useEffect(() => {
+    void refreshStatus();
+  }, []);
+
+  const triggerNow = () => {
+    if (running) return;
+    setRunning(true);
+    setNotice(null);
+
+    // Fire the request without awaiting. The daemon's POST handler doesn't
+    // return until the entire agent run finishes, so awaiting here would
+    // defeat the "watch realtime output" goal. Instead we kick the run off,
+    // navigate to the conversation view immediately, and let ProjectView's
+    // existing SSE reattach pick the in-flight run up.
+    void (async () => {
+      try {
+        const response = await fetch('/api/orbit/run', { method: 'POST' });
+        if (!response.ok) throw new Error('Orbit run failed');
+        const payload = await response.json() as { summary?: OrbitRunSummary };
+        // The component is usually unmounted by the time this resolves
+        // (we navigate on the same tick). Guard every setState so the
+        // late response just no-ops in that case.
+        if (!isMountedRef.current) return;
+        setStatus((curr) => ({
+          ...(curr ?? {}),
+          running: false,
+          lastRun: payload.summary ?? curr?.lastRun ?? null,
+        }));
+        setNotice({
+          kind: 'success',
+          message: payload.summary?.artifactId
+            ? 'Orbit summary generated as a live artifact.'
+            : 'Orbit summary generated.',
+        });
+      } catch {
+        if (!isMountedRef.current) return;
+        setNotice({
+          kind: 'error',
+          message: 'Could not run Orbit. Make sure the local daemon is running and connectors are configured.',
+        });
+      } finally {
+        if (!isMountedRef.current) return;
+        setRunning(false);
+        void refreshStatus();
+      }
+    })();
+
+    // Persist any pending Orbit edits + close Settings, then route to the
+    // Orbit project view. The conversation row is created on the daemon
+    // side as part of the POST handler; by the time ProjectView mounts and
+    // fetches its conversation list, that row is virtually always present.
+    // If it isn't yet (very fast machines), the project's SSE channel will
+    // still receive its messages once it is, so the realtime output shows
+    // up either way.
+    onLeaveForOrbitProject();
+    navigateRoute({
+      kind: 'project',
+      projectId: ORBIT_PROJECT_ID,
+      fileName: null,
+    });
+  };
+
+  const lastRun = status?.lastRun ?? null;
+  const nextRunLabel = status?.nextRunAt ? new Date(status.nextRunAt).toLocaleString() : null;
+  const lastRunAbs = lastRun ? new Date(lastRun.completedAt).toLocaleString() : null;
+  const lastRunRel = formatRelative(lastRun?.completedAt);
+  const liveArtifactHref = lastRun?.artifactId && lastRun?.artifactProjectId
+    ? `/api/live-artifacts/${encodeURIComponent(lastRun.artifactId)}/preview?projectId=${encodeURIComponent(lastRun.artifactProjectId)}`
+    : null;
+  const isBusy = running || Boolean(status?.running);
+
+  const copyMarkdown = async () => {
+    if (!lastRun?.markdown) return;
+    try {
+      await navigator.clipboard.writeText(lastRun.markdown);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Clipboard access may be denied in some browsing contexts; silently skip.
+    }
+  };
+
+  // Proportional widths for the run-result meter. We avoid showing 0-width
+  // segments by falling back to a tiny sliver when a category has hits but
+  // rounds to 0% — the visual "something happened here" cue matters more
+  // than exact proportion at low counts.
+  const total = lastRun
+    ? Math.max(
+        lastRun.connectorsSucceeded + lastRun.connectorsSkipped + lastRun.connectorsFailed,
+        1,
+      )
+    : 1;
+  const segPct = (n: number) => {
+    if (!lastRun || n <= 0) return 0;
+    const pct = (n / total) * 100;
+    return pct < 3 ? 3 : pct;
+  };
+  const meterSucceeded = lastRun ? segPct(lastRun.connectorsSucceeded) : 0;
+  const meterSkipped = lastRun ? segPct(lastRun.connectorsSkipped) : 0;
+  const meterFailed = lastRun ? segPct(lastRun.connectorsFailed) : 0;
+
+  const automationState = orbit.enabled ? 'active' : 'off';
+  const triggerLabel = lastRun?.trigger === 'manual' ? 'Manual' : 'Scheduled';
+
+  return (
+    <section className="settings-section orbit-section">
+      {/* ---------- 1. HEADER ZONE ---------- */}
+      <header className="orbit-hero">
+        <div className="orbit-hero-mark" aria-hidden="true">
+          <Icon name="refresh" size={20} />
+        </div>
+        <div className="orbit-hero-copy">
+          <span className="orbit-hero-eyebrow">Automation</span>
+          <h3 className="orbit-hero-title">Orbit</h3>
+          <p className="orbit-hero-lede">
+            Collect connector activity on a schedule and publish the result as a
+            refreshable <strong>live artifact</strong>.
+          </p>
+        </div>
+        <div className="orbit-hero-actions">
+          <span
+            className={`orbit-state-pill orbit-state-${automationState}`}
+            title={orbit.enabled ? 'Scheduled daily runs are on' : 'Scheduled daily runs are off'}
+          >
+            <span className="orbit-state-dot" aria-hidden="true" />
+            {orbit.enabled ? 'Active' : 'Off'}
+          </span>
+          <button
+            type="button"
+            className={'orbit-run-cta' + (isBusy ? ' is-busy' : '')}
+            onClick={() => void triggerNow()}
+            disabled={isBusy}
+            title="Start an Orbit run and open the live conversation"
+          >
+            {isBusy ? (
+              <>
+                <Icon name="spinner" size={14} className="icon-spin" />
+                <span>Running…</span>
+              </>
+            ) : (
+              <>
+                <Icon name="play" size={14} />
+                <span>Run &amp; open</span>
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* ---------- 2. AUTOMATION CARD ---------- */}
+      <div className={`orbit-automation${orbit.enabled ? ' is-on' : ''}`}>
+        <div className="orbit-automation-row orbit-automation-switch-row">
+          <div className="orbit-automation-label">
+            <span className="orbit-automation-title">Daily summary</span>
+            <span className="orbit-automation-sub">
+              Runs once per day at the scheduled local time.
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={orbit.enabled}
+            className={`orbit-switch${orbit.enabled ? ' is-on' : ''}`}
+            onClick={() => updateOrbit({ enabled: !orbit.enabled })}
+          >
+            <span className="orbit-switch-track" aria-hidden="true">
+              <span className="orbit-switch-thumb" />
+            </span>
+            <span className="orbit-switch-text">{orbit.enabled ? 'On' : 'Off'}</span>
+          </button>
+        </div>
+
+        <div className="orbit-automation-divider" aria-hidden="true" />
+
+        <div className="orbit-automation-row orbit-automation-schedule-row">
+          <div className="orbit-automation-label">
+            <span className="orbit-automation-title">Run time</span>
+            <span className="orbit-automation-sub">
+              Default 08:00. Save to apply to the daemon schedule.
+            </span>
+          </div>
+          <div className="orbit-automation-schedule-controls">
+            <input
+              type="time"
+              className="orbit-time-input"
+              value={orbit.time}
+              onChange={(e) => updateOrbit({ time: e.target.value || DEFAULT_ORBIT.time })}
+              aria-label="Daily Orbit run time"
+            />
+            <div className="orbit-next-run" aria-live="polite">
+              {orbit.enabled ? (
+                nextRunLabel ? (
+                  <>
+                    <span className="orbit-next-run-label">Next run</span>
+                    <span className="orbit-next-run-value">{nextRunLabel}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="orbit-next-run-label">Next run</span>
+                    <span className="orbit-next-run-value muted">Scheduled after Save</span>
+                  </>
+                )
+              ) : (
+                <>
+                  <span className="orbit-next-run-label">Schedule</span>
+                  <span className="orbit-next-run-value muted">Paused — manual runs only</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- 3. RUN RESULT / RECEIPT ---------- */}
+      {/* When there is no last run yet, the "receipt" metaphor doesn't fit —
+          there's nothing to report. We swap to a first-run prompt with its
+          own composed layout (orbit-glyph · copy · inline CTA) so the empty
+          state feels intentional and rhythmically balanced with the hero,
+          automation card, and (eventual) artifact strip. */}
+      {lastRun ? (
+        <div className="orbit-receipt">
+          <div className="orbit-receipt-head">
+            <div className="orbit-receipt-head-left">
+              <span className="orbit-receipt-eyebrow">
+                <Icon name="history" size={12} />
+                Last run
+              </span>
+              <span
+                className="orbit-receipt-timestamp"
+                title={lastRunAbs ?? undefined}
+              >
+                {lastRunRel ?? lastRunAbs}
+              </span>
+            </div>
+            <span
+              className={`orbit-trigger-pill orbit-trigger-${lastRun.trigger ?? 'scheduled'}`}
+            >
+              {triggerLabel}
+            </span>
+          </div>
+
+          {notice ? (
+            <div
+              className={`orbit-inline-notice is-${notice.kind}`}
+              role={notice.kind === 'error' ? 'alert' : 'status'}
+            >
+              <Icon name={notice.kind === 'error' ? 'close' : 'check'} size={12} />
+              <span>{notice.message}</span>
+            </div>
+          ) : null}
+
+          <div
+            className="orbit-meter"
+            role="img"
+            aria-label={`${lastRun.connectorsSucceeded} succeeded, ${lastRun.connectorsSkipped} skipped, ${lastRun.connectorsFailed} failed out of ${lastRun.connectorsChecked} checked`}
+          >
+            {meterSucceeded > 0 ? (
+              <span
+                className="orbit-meter-seg is-succeeded"
+                style={{ width: `${meterSucceeded}%` }}
+              />
+            ) : null}
+            {meterSkipped > 0 ? (
+              <span
+                className="orbit-meter-seg is-skipped"
+                style={{ width: `${meterSkipped}%` }}
+              />
+            ) : null}
+            {meterFailed > 0 ? (
+              <span
+                className="orbit-meter-seg is-failed"
+                style={{ width: `${meterFailed}%` }}
+              />
+            ) : null}
+            {meterSucceeded + meterSkipped + meterFailed === 0 ? (
+              <span className="orbit-meter-seg is-empty" />
+            ) : null}
+          </div>
+          <dl className="orbit-counts">
+            <div className="orbit-count">
+              <dt>Checked</dt>
+              <dd>{lastRun.connectorsChecked}</dd>
+            </div>
+            <div className="orbit-count is-succeeded">
+              <dt>Succeeded</dt>
+              <dd>{lastRun.connectorsSucceeded}</dd>
+            </div>
+            <div className="orbit-count is-skipped">
+              <dt>Skipped</dt>
+              <dd>{lastRun.connectorsSkipped}</dd>
+            </div>
+            <div className="orbit-count is-failed">
+              <dt>Failed</dt>
+              <dd>{lastRun.connectorsFailed}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : (
+        <div
+          className={`orbit-firstrun${isBusy ? ' is-busy' : ''}`}
+          role="region"
+          aria-label="Orbit has not run yet"
+        >
+          {/* Decorative orbit rings — pure CSS, ties the empty state to the
+              hero's accent gradient mark without introducing a new icon. */}
+          <div className="orbit-firstrun-glyph" aria-hidden="true">
+            <span className="orbit-firstrun-ring orbit-firstrun-ring-outer" />
+            <span className="orbit-firstrun-ring orbit-firstrun-ring-inner" />
+            <span className="orbit-firstrun-planet" />
+          </div>
+          <div className="orbit-firstrun-copy">
+            <span className="orbit-firstrun-eyebrow">Awaiting first run</span>
+            <h4 className="orbit-firstrun-title">
+              Your daily summary will land here
+            </h4>
+            <p className="orbit-firstrun-body">
+              {orbit.enabled
+                ? <>Orbit is scheduled — the next automatic run will publish a live artifact and a breakdown of connector activity in this card.</>
+                : <>Run Orbit once to see a connector breakdown and a refreshable live artifact appear in this card.</>}
+            </p>
+          </div>
+          <div className="orbit-firstrun-action">
+            <button
+              type="button"
+              className={'orbit-firstrun-btn' + (isBusy ? ' is-busy' : '')}
+              onClick={() => void triggerNow()}
+              disabled={isBusy}
+              title="Start the first Orbit run and open the live conversation"
+            >
+              {isBusy ? (
+                <>
+                  <Icon name="spinner" size={13} className="icon-spin" />
+                  <span>Generating…</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="play" size={13} />
+                  <span>Generate &amp; open</span>
+                </>
+              )}
+            </button>
+            {notice ? (
+              <span
+                className={`orbit-firstrun-notice is-${notice.kind}`}
+                role={notice.kind === 'error' ? 'alert' : 'status'}
+              >
+                {notice.message}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- 4. LIVE ARTIFACT STRIP ---------- */}
+      {lastRun ? (
+        <div
+          className={`orbit-artifact-strip${liveArtifactHref ? '' : ' is-legacy'}`}
+        >
+          <div className="orbit-artifact-strip-icon" aria-hidden="true">
+            <Icon name="file-code" size={18} />
+          </div>
+          <div className="orbit-artifact-strip-copy">
+            <span className="orbit-artifact-strip-kicker">
+              {liveArtifactHref ? 'Live artifact' : 'Legacy summary'}
+            </span>
+            <span className="orbit-artifact-strip-title">
+              Daily Orbit Activity Summary
+            </span>
+            <span className="orbit-artifact-strip-meta">
+              {liveArtifactHref
+                ? 'Refreshable HTML artifact generated from connector activity.'
+                : 'Generated before live artifacts were enabled — run Orbit again to publish one.'}
+            </span>
+          </div>
+          <div className="orbit-artifact-strip-actions">
+            {lastRun.markdown ? (
+              <button
+                type="button"
+                className="orbit-artifact-ghost"
+                onClick={() => void copyMarkdown()}
+                title="Copy markdown summary to clipboard"
+              >
+                {copied ? (
+                  <>
+                    <Icon name="check" size={13} />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="copy" size={13} />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            ) : null}
+            {liveArtifactHref ? (
+              <a
+                className="orbit-artifact-open"
+                href={liveArtifactHref}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>Open artifact</span>
+                <Icon name="external-link" size={13} />
+              </a>
+            ) : null}
+          </div>
+          {lastRun.markdown ? (
+            <details className="orbit-artifact-peek">
+              <summary>
+                <Icon name="chevron-right" size={12} />
+                <span>Source markdown</span>
+              </summary>
+              <pre>{lastRun.markdown}</pre>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

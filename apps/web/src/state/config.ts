@@ -5,6 +5,7 @@ import type {
   AppConfig,
   MediaProviderCredentials,
   NotificationsConfig,
+  OrbitConfig,
   PetConfig,
 } from '../types';
 import { normalizeAccentColor } from './appearance';
@@ -41,6 +42,11 @@ export const DEFAULT_PET: PetConfig = {
   },
 };
 
+export const DEFAULT_ORBIT: OrbitConfig = {
+  enabled: false,
+  time: '08:00',
+};
+
 export const DEFAULT_CONFIG: AppConfig = {
   mode: 'daemon',
   apiKey: '',
@@ -65,6 +71,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   agentCliEnv: {},
   pet: DEFAULT_PET,
   notifications: DEFAULT_NOTIFICATIONS,
+  orbit: DEFAULT_ORBIT,
 };
 
 /** Well-known providers with pre-filled base URLs. */
@@ -204,6 +211,13 @@ function normalizeNotifications(
   return { ...DEFAULT_NOTIFICATIONS, ...(input ?? {}) };
 }
 
+function normalizeOrbit(input: Partial<OrbitConfig> | undefined): OrbitConfig {
+  const time = typeof input?.time === 'string' && /^\d{2}:\d{2}$/.test(input.time)
+    ? input.time
+    : DEFAULT_ORBIT.time;
+  return { ...DEFAULT_ORBIT, ...(input ?? {}), time };
+}
+
 function inferApiProtocol(model: string, baseUrl: string): ApiProtocol {
   try {
     return isOpenAICompatible(model, baseUrl) ? 'openai' : 'anthropic';
@@ -223,6 +237,7 @@ export function loadConfig(): AppConfig {
         ...DEFAULT_CONFIG,
         pet: normalizePet(DEFAULT_PET),
         notifications: normalizeNotifications(DEFAULT_NOTIFICATIONS),
+        orbit: normalizeOrbit(DEFAULT_ORBIT),
       };
     }
     const parsed = JSON.parse(raw) as Partial<AppConfig>;
@@ -241,6 +256,7 @@ export function loadConfig(): AppConfig {
       accentColor: normalizeAccentColor(parsed.accentColor) ?? DEFAULT_CONFIG.accentColor,
       pet: normalizePet(parsed.pet),
       notifications: normalizeNotifications(parsed.notifications),
+      orbit: normalizeOrbit(parsed.orbit),
     };
 
     if (parsed.configMigrationVersion !== CONFIG_MIGRATION_VERSION) {
@@ -268,6 +284,7 @@ export function loadConfig(): AppConfig {
       ...DEFAULT_CONFIG,
       pet: normalizePet(DEFAULT_PET),
       notifications: normalizeNotifications(DEFAULT_NOTIFICATIONS),
+      orbit: normalizeOrbit(DEFAULT_ORBIT),
     };
   }
 }
@@ -346,6 +363,9 @@ export function mergeDaemonConfig(
   if (daemonConfig.disabledDesignSystems !== undefined) {
     next.disabledDesignSystems = daemonConfig.disabledDesignSystems;
   }
+  if (daemonConfig.orbit !== undefined) {
+    next.orbit = normalizeOrbit(daemonConfig.orbit);
+  }
   return next;
 }
 
@@ -395,6 +415,7 @@ export async function syncConfigToDaemon(config: AppConfig): Promise<void> {
     designSystemId: config.designSystemId,
     disabledSkills: config.disabledSkills,
     disabledDesignSystems: config.disabledDesignSystems,
+    orbit: normalizeOrbit(config.orbit),
   };
   try {
     await fetch('/api/app-config', {

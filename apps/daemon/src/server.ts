@@ -63,6 +63,7 @@ import {
 } from './media-models.js';
 import { readMaskedConfig, writeConfig } from './media-config.js';
 import { agentCliEnvForAgent, readAppConfig, writeAppConfig } from './app-config.js';
+import { ORBIT_PROJECT_ID, OrbitService } from './orbit.js';
 import {
   buildProjectArchive,
   buildBatchArchive,
@@ -689,6 +690,7 @@ const RUNTIME_DATA_DIR = resolveDataDir(process.env.OD_DATA_DIR, PROJECT_ROOT);
 const ARTIFACTS_DIR = path.join(RUNTIME_DATA_DIR, 'artifacts');
 const PROJECTS_DIR = path.join(RUNTIME_DATA_DIR, 'projects');
 fs.mkdirSync(PROJECTS_DIR, { recursive: true });
+const orbitService = new OrbitService(RUNTIME_DATA_DIR);
 
 const activeChatAgentEventSinks = new Map();
 const activeProjectEventSinks = new Map();
@@ -1397,7 +1399,10 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
   // build advertises --include-partial-messages) so the first /api/chat
   // hits a populated cache even if /api/agents hasn't been called yet.
   void readAppConfig(RUNTIME_DATA_DIR)
-    .then((config) => detectAgents(config.agentCliEnv ?? {}))
+    .then((config) => {
+      orbitService.configure(config.orbit);
+      return detectAgents(config.agentCliEnv ?? {});
+    })
     .catch(() => detectAgents().catch(() => {}));
 
   await recoverStaleLiveArtifactRefreshes({ projectsRoot: PROJECTS_DIR }).catch((error) => {
@@ -3279,7 +3284,34 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
     }
     try {
       const config = await writeAppConfig(RUNTIME_DATA_DIR, req.body);
+      orbitService.configure(config.orbit);
       res.json({ config });
+    } catch (err) {
+      res
+        .status(500)
+        .json({ error: String(err && err.message ? err.message : err) });
+    }
+  });
+
+  app.get('/api/orbit/status', async (req, res) => {
+    if (!isLocalSameOrigin(req, resolvedPort)) {
+      return res.status(403).json({ error: 'cross-origin request rejected' });
+    }
+    try {
+      res.json(await orbitService.status());
+    } catch (err) {
+      res
+        .status(500)
+        .json({ error: String(err && err.message ? err.message : err) });
+    }
+  });
+
+  app.post('/api/orbit/run', async (req, res) => {
+    if (!isLocalSameOrigin(req, resolvedPort)) {
+      return res.status(403).json({ error: 'cross-origin request rejected' });
+    }
+    try {
+      res.json({ summary: await orbitService.run('manual') });
     } catch (err) {
       res
         .status(500)
@@ -4234,6 +4266,110 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
       design.runs.finish(run, status, code, signal);
     });
   };
+
+  orbitService.setRunHandler(async ({ trigger, startedAt, prompt }) => {
+    const appConfig = await readAppConfig(RUNTIME_DATA_DIR);
+    let agentId = typeof appConfig.agentId === 'string' && appConfig.agentId
+      ? appConfig.agentId
+      : null;
+    if (!agentId) {
+      const agents = await detectAgents(appConfig.agentCliEnv ?? {}).catch(() => []);
+      agentId = agents.find((agent) => agent.available)?.id ?? null;
+    }
+    if (!agentId) throw new Error('No available agent is configured for Orbit. Choose an agent in Settings first.');
+
+    const now = Date.now();
+    const conversationId = `orbit-${startedAt.slice(0, 10)}`;
+    const assistantMessageId = `orbit-assistant-${randomUUID()}`;
+    if (!getProject(db, ORBIT_PROJECT_ID)) {
+      insertProject(db, {
+        id: ORBIT_PROJECT_ID,
+        name: 'Orbit',
+        skillId: 'live-artifact',
+        designSystemId: appConfig.designSystemId ?? null,
+        pendingPrompt: null,
+        metadata: { kind: 'orbit' },
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      updateProject(db, ORBIT_PROJECT_ID, { updatedAt: now });
+    }
+    if (!getConversation(db, conversationId)) {
+      insertConversation(db, {
+        id: conversationId,
+        projectId: ORBIT_PROJECT_ID,
+        title: 'Daily Orbit Activity',
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      updateConversation(db, conversationId, {
+        title: 'Daily Orbit Activity',
+        updatedAt: now,
+      });
+    }
+
+    const run = design.runs.create({
+      projectId: ORBIT_PROJECT_ID,
+      conversationId,
+      assistantMessageId,
+      clientRequestId: `orbit-${trigger}-${randomUUID()}`,
+      agentId,
+    });
+    upsertMessage(db, conversationId, {
+      id: `orbit-user-${run.id}`,
+      role: 'user',
+      content: prompt,
+    });
+    upsertMessage(db, conversationId, {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      agentId,
+      agentName: getAgentDef(agentId)?.name ?? agentId,
+      runId: run.id,
+      runStatus: 'queued',
+      startedAt: now,
+    });
+
+    const modelPrefs = appConfig.agentModels?.[agentId] ?? {};
+    design.runs.start(run, () => startChatRun({
+      agentId,
+      projectId: ORBIT_PROJECT_ID,
+      conversationId: run.conversationId,
+      assistantMessageId: run.assistantMessageId,
+      clientRequestId: run.clientRequestId,
+      skillId: 'live-artifact',
+      designSystemId: appConfig.designSystemId ?? null,
+      model: modelPrefs.model ?? null,
+      reasoning: modelPrefs.reasoning ?? null,
+      message: prompt,
+      systemPrompt: [
+        'You are Orbit, an autonomous activity-summary agent inside Open Design.',
+        'You must discover connectors and connector tools yourself through the OD CLI; the daemon has not chosen tools for you.',
+        'You must create and register a Live Artifact as the final deliverable. Do not merely describe what you would do.',
+        'Do not ask follow-up questions, do not emit <question-form>, and do not wait for user input. This run is unattended; pick reasonable defaults and complete the artifact.',
+        'Keep connector credentials and OD_TOOL_TOKEN private; never print or persist secrets.',
+      ].join('\n'),
+    }, run));
+
+    const finalStatus = await design.runs.wait(run);
+    db.prepare(
+      `UPDATE messages SET run_status = ?, ended_at = ? WHERE id = ?`,
+    ).run(finalStatus.status, Date.now(), assistantMessageId);
+    const artifacts = await listLiveArtifacts({ projectsRoot: PROJECTS_DIR, projectId: ORBIT_PROJECT_ID });
+    const artifact = artifacts.find((candidate) => candidate.createdByRunId === run.id);
+    const status = finalStatus.status === 'succeeded' && !artifact ? 'failed' : finalStatus.status;
+    return {
+      agentRunId: run.id,
+      status,
+      ...(artifact?.id ? { artifactId: artifact.id, artifactProjectId: ORBIT_PROJECT_ID } : {}),
+      summary: artifact?.id
+        ? `Agent ${finalStatus.status} and registered live artifact ${artifact.title}.`
+        : `Agent ${finalStatus.status} but did not register a live artifact for this Orbit run.`,
+    };
+  });
 
   app.post('/api/runs', (req, res) => {
     const run = design.runs.create(req.body || {});

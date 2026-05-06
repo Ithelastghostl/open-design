@@ -1353,6 +1353,862 @@ code {
   background: var(--red-bg);
   color: var(--red);
 }
+/* ============================================================
+   Orbit settings section — redesigned layout
+   Hero · Automation card · Run receipt · Artifact strip
+   ============================================================ */
+.orbit-section {
+  gap: 16px;
+}
+
+/* ---------- 1. Hero / header zone ---------- */
+.orbit-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(140% 160% at 100% 0%, color-mix(in srgb, var(--accent-tint) 75%, transparent) 0%, transparent 60%),
+    var(--bg-panel);
+  box-shadow: var(--shadow-xs);
+}
+.orbit-hero-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, #000) 100%);
+  color: #fff;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 32%, transparent);
+  flex-shrink: 0;
+}
+.orbit-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.orbit-hero-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+.orbit-hero-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--text-strong);
+  line-height: 1.15;
+}
+.orbit-hero-lede {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 52ch;
+}
+.orbit-hero-lede strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.orbit-hero-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.orbit-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.orbit-state-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.orbit-state-pill.orbit-state-active {
+  background: color-mix(in srgb, var(--accent-tint) 80%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  color: var(--accent-strong);
+}
+.orbit-state-pill.orbit-state-active .orbit-state-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+.orbit-run-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-strong) 22%, transparent) inset, var(--shadow-xs);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.orbit-run-cta:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.orbit-run-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.orbit-run-cta:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+.orbit-run-cta.is-busy {
+  background: color-mix(in srgb, var(--accent) 75%, #000);
+  border-color: transparent;
+}
+.orbit-run-cta .icon-spin {
+  color: #fff;
+}
+
+@media (max-width: 620px) {
+  .orbit-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 10px;
+  }
+  .orbit-hero-actions {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+}
+
+/* ---------- 2. Automation card ---------- */
+.orbit-automation {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.orbit-automation.is-on {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-tint) 40%, var(--bg-panel)) 0%, var(--bg-panel) 40%);
+}
+
+.orbit-automation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 18px;
+}
+.orbit-automation-schedule-row {
+  align-items: start;
+}
+.orbit-automation-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 0 18px;
+}
+.orbit-automation-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.orbit-automation-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.orbit-automation-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Custom switch control — rebuilt rather than reusing .toggle-row so the
+   Orbit section owns the pattern and can tune track/thumb proportions. */
+.orbit-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 4px 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+.orbit-switch:hover { border-color: var(--border-strong); }
+.orbit-switch.is-on {
+  background: color-mix(in srgb, var(--accent-tint) 70%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  color: var(--accent-strong);
+}
+.orbit-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.orbit-switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 160ms ease;
+}
+.orbit-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(28, 27, 26, 0.22);
+  transition: transform 180ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+.orbit-switch.is-on .orbit-switch-track { background: var(--accent); }
+.orbit-switch.is-on .orbit-switch-thumb { transform: translateX(14px); }
+.orbit-switch-text {
+  font-variant-numeric: tabular-nums;
+  min-width: 22px;
+  text-align: right;
+}
+
+.orbit-automation-schedule-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.orbit-time-input {
+  width: 140px;
+  padding: 6px 10px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  border-radius: var(--radius-sm);
+}
+.orbit-next-run {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orbit-next-run-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.orbit-next-run-value {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.orbit-next-run-value.muted {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+@media (max-width: 620px) {
+  .orbit-automation-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 10px;
+  }
+  .orbit-automation-schedule-controls {
+    align-items: stretch;
+  }
+  .orbit-time-input {
+    width: 100%;
+  }
+  .orbit-switch { align-self: flex-start; }
+}
+
+/* ---------- 3. Run receipt ---------- */
+.orbit-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-xs);
+}
+.orbit-receipt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.orbit-receipt-head-left {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.orbit-receipt-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.orbit-receipt-eyebrow svg { color: var(--text-soft); }
+.orbit-receipt-timestamp {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-strong);
+  letter-spacing: -0.005em;
+  font-variant-numeric: tabular-nums;
+}
+.orbit-receipt-timestamp.muted {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.orbit-trigger-pill {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.orbit-trigger-pill.orbit-trigger-manual {
+  background: var(--blue-bg);
+  border-color: var(--blue-border);
+  color: var(--blue);
+}
+.orbit-trigger-pill.orbit-trigger-scheduled {
+  background: color-mix(in srgb, var(--accent-tint) 80%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  color: var(--accent-strong);
+}
+
+.orbit-inline-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  line-height: 1.4;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.orbit-inline-notice.is-success {
+  border-color: var(--green-border);
+  background: var(--green-bg);
+  color: var(--green);
+}
+.orbit-inline-notice.is-error {
+  border-color: var(--red-border);
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+/* Proportional run meter: a single bar whose segment widths reflect the
+   success / skip / failure ratio. Preferred over 4 equal tiles because it
+   communicates "mostly succeeded" or "mostly failed" at a glance. */
+.orbit-meter {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+.orbit-meter-seg {
+  height: 100%;
+  transition: width 260ms ease;
+}
+.orbit-meter-seg.is-succeeded { background: var(--green); }
+.orbit-meter-seg.is-skipped { background: var(--border-strong); }
+.orbit-meter-seg.is-failed { background: var(--red); }
+.orbit-meter-seg.is-empty {
+  width: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--bg-subtle) 0 6px,
+    var(--bg-muted) 6px 12px
+  );
+}
+
+.orbit-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.orbit-counts .orbit-count {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 12px;
+}
+.orbit-counts .orbit-count + .orbit-count::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border-soft);
+}
+.orbit-count dt {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0;
+}
+.orbit-count dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.orbit-count.is-succeeded dd { color: var(--green); }
+.orbit-count.is-skipped dd { color: var(--text-muted); }
+.orbit-count.is-failed dd { color: var(--red); }
+
+@media (max-width: 620px) {
+  .orbit-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .orbit-counts .orbit-count + .orbit-count::before { display: none; }
+}
+
+/* ---------- 3b. First-run prompt (replaces the receipt when no runs yet) ----
+   Designed to feel like a deliberate "this is what's coming" panel rather than
+   a degraded receipt. Three balanced regions echo the hero's structure:
+   orbit glyph (rhymes with the hero accent tile) · framed copy · contextual
+   CTA. Sits at roughly the same vertical weight as a populated receipt to
+   keep the four-zone rhythm intact. */
+.orbit-firstrun {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 160% at 0% 50%, color-mix(in srgb, var(--accent-tint) 75%, transparent) 0%, transparent 55%),
+    var(--bg-panel);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+.orbit-firstrun::after {
+  /* Soft outer ring decoration in the corner — purely visual, ties to the
+     orbit metaphor without competing with the central glyph. */
+  content: '';
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+
+.orbit-firstrun-glyph {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.orbit-firstrun-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.orbit-firstrun-ring-outer {
+  inset: 0;
+  animation: orbitFirstrunSpin 18s linear infinite;
+}
+.orbit-firstrun-ring-inner {
+  inset: 10px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+  animation: orbitFirstrunSpin 12s linear infinite reverse;
+}
+.orbit-firstrun-planet {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, #000) 100%);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.orbit-firstrun.is-busy .orbit-firstrun-ring-outer { animation-duration: 4s; }
+.orbit-firstrun.is-busy .orbit-firstrun-ring-inner { animation-duration: 3s; }
+.orbit-firstrun.is-busy .orbit-firstrun-planet {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes orbitFirstrunSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbit-firstrun-ring,
+  .orbit-firstrun.is-busy .orbit-firstrun-planet { animation: none !important; }
+}
+
+.orbit-firstrun-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.orbit-firstrun-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+.orbit-firstrun-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  color: var(--text-strong);
+  line-height: 1.3;
+}
+.orbit-firstrun-body {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.orbit-firstrun-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.orbit-firstrun-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-strong) 22%, transparent) inset, var(--shadow-xs);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.orbit-firstrun-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.orbit-firstrun-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.orbit-firstrun-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+.orbit-firstrun-btn.is-busy {
+  background: color-mix(in srgb, var(--accent) 75%, #000);
+  border-color: transparent;
+}
+.orbit-firstrun-btn .icon-spin { color: #fff; }
+
+.orbit-firstrun-notice {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: right;
+  max-width: 24ch;
+}
+.orbit-firstrun-notice.is-error { color: var(--red); }
+.orbit-firstrun-notice.is-success { color: var(--green); }
+
+@media (max-width: 620px) {
+  .orbit-firstrun {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 12px;
+  }
+  .orbit-firstrun-action {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .orbit-firstrun-notice { text-align: left; max-width: none; }
+}
+
+/* ---------- 4. Live artifact strip ---------- */
+.orbit-artifact-strip {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  row-gap: 10px;
+  align-items: center;
+  padding: 14px 16px 14px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-tint) 60%, var(--bg-panel)) 0%, var(--bg-panel) 55%);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+.orbit-artifact-strip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 50%, transparent) 100%);
+}
+.orbit-artifact-strip.is-legacy {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+  border-style: dashed;
+}
+.orbit-artifact-strip.is-legacy::before { display: none; }
+
+.orbit-artifact-strip-icon {
+  grid-row: 1;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  color: var(--accent-strong);
+  flex-shrink: 0;
+}
+.orbit-artifact-strip.is-legacy .orbit-artifact-strip-icon {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.orbit-artifact-strip-copy {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.orbit-artifact-strip-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+.orbit-artifact-strip.is-legacy .orbit-artifact-strip-kicker {
+  color: var(--text-muted);
+}
+.orbit-artifact-strip-title {
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.orbit-artifact-strip-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.orbit-artifact-strip-actions {
+  grid-row: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.orbit-artifact-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.orbit-artifact-ghost:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+}
+
+.orbit-artifact-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-strong) 20%, transparent) inset, var(--shadow-xs);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.orbit-artifact-open:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.orbit-artifact-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.orbit-artifact-peek {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border-soft));
+  padding-top: 8px;
+}
+.orbit-artifact-strip.is-legacy .orbit-artifact-peek {
+  border-top-color: var(--border-soft);
+}
+.orbit-artifact-peek summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  user-select: none;
+}
+.orbit-artifact-peek summary::-webkit-details-marker { display: none; }
+.orbit-artifact-peek summary svg {
+  transition: transform 160ms ease;
+  color: var(--text-soft);
+}
+.orbit-artifact-peek[open] summary svg { transform: rotate(90deg); }
+.orbit-artifact-peek[open] summary { color: var(--text); }
+.orbit-artifact-peek pre {
+  margin: 8px 0 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text);
+  font: 11.5px/1.6 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  .orbit-artifact-strip {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .orbit-artifact-strip-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-end;
+  }
+  .orbit-artifact-peek {
+    grid-column: 1 / -1;
+  }
+}
 .settings-field-error {
   color: var(--red);
   font-size: 12px;
