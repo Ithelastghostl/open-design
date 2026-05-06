@@ -1,12 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   agentRefreshOptionsForConfig,
   isValidApiBaseUrl,
+  persistConfigAndRunOrbit,
   switchApiProtocolConfig,
   updateAgentCliEnvValue,
   updateCurrentApiProtocolConfig,
 } from '../../src/components/SettingsDialog';
 import type { AppConfig } from '../../src/types';
+
+const originalFetch = globalThis.fetch;
 
 const baseConfig: AppConfig = {
   mode: 'api',
@@ -19,6 +22,12 @@ const baseConfig: AppConfig = {
   skillId: null,
   designSystemId: null,
 };
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('SettingsDialog API protocol switching', () => {
   it('stores the current custom protocol config while preserving custom endpoint details', () => {
@@ -220,6 +229,54 @@ describe('SettingsDialog agent CLI env settings', () => {
     expect(agentRefreshOptionsForConfig(config)).toEqual({
       throwOnError: true,
       agentCliEnv: {},
+    });
+  });
+});
+
+describe('SettingsDialog Orbit run behavior', () => {
+  it('persists the current orbit template config before starting the run', async () => {
+    const calls: Array<{ url: string; method: string; body?: string }> = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+      const body = typeof init?.body === 'string' ? init.body : undefined;
+      calls.push({ url, method, body });
+
+      if (url === '/api/app-config') {
+        return new Response(null, { status: 204 });
+      }
+      if (url === '/api/orbit/run') {
+        return new Response(JSON.stringify({ projectId: 'orbit-project', agentRunId: 'run-1' }), { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    await expect(
+      persistConfigAndRunOrbit({
+        ...baseConfig,
+        orbit: {
+          enabled: true,
+          time: '09:30',
+          templateSkillId: 'orbit-template-1',
+        },
+      }),
+    ).resolves.toEqual({ projectId: 'orbit-project', agentRunId: 'run-1' });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatchObject({
+      url: '/api/app-config',
+      method: 'PUT',
+    });
+    expect(JSON.parse(calls[0]!.body ?? '{}')).toMatchObject({
+      orbit: {
+        enabled: true,
+        time: '09:30',
+        templateSkillId: 'orbit-template-1',
+      },
+    });
+    expect(calls[1]).toMatchObject({
+      url: '/api/orbit/run',
+      method: 'POST',
     });
   });
 });

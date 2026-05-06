@@ -406,7 +406,10 @@ export async function fetchDaemonConfig(): Promise<AppConfigPrefs | null> {
   }
 }
 
-export async function syncConfigToDaemon(config: AppConfig): Promise<void> {
+export async function syncConfigToDaemon(
+  config: AppConfig,
+  options?: { throwOnError?: boolean },
+): Promise<void> {
   const prefs: AppConfigPrefs = {
     onboardingCompleted: config.onboardingCompleted,
     agentId: config.agentId,
@@ -419,12 +422,14 @@ export async function syncConfigToDaemon(config: AppConfig): Promise<void> {
     orbit: normalizeOrbit(config.orbit),
   };
   try {
-    await fetch('/api/app-config', {
+    const response = await fetch('/api/app-config', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(prefs),
     });
-  } catch {
+    if (!response.ok) throw new Error(`Failed to sync app config (${response.status})`);
+  } catch (error) {
+    if (options?.throwOnError) throw error;
     // Daemon offline; localStorage keeps the user's copy for the next save.
   }
 }

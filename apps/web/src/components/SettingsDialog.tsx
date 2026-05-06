@@ -9,7 +9,7 @@ import {
   isCustomModel,
   renderModelOptions,
 } from './modelOptions';
-import { DEFAULT_NOTIFICATIONS, DEFAULT_ORBIT, KNOWN_PROVIDERS } from '../state/config';
+import { DEFAULT_NOTIFICATIONS, DEFAULT_ORBIT, KNOWN_PROVIDERS, syncConfigToDaemon } from '../state/config';
 import type { KnownProvider } from '../state/config';
 import { navigate as navigateRoute } from '../router';
 import {
@@ -1359,6 +1359,15 @@ interface OrbitRunStartResponse {
   agentRunId: string;
 }
 
+export async function persistConfigAndRunOrbit(
+  config: AppConfig,
+): Promise<OrbitRunStartResponse> {
+  await syncConfigToDaemon(config, { throwOnError: true });
+  const response = await fetch('/api/orbit/run', { method: 'POST' });
+  if (!response.ok) throw new Error('Orbit run failed');
+  return await response.json() as OrbitRunStartResponse;
+}
+
 interface OrbitStatusResponse {
   running?: boolean;
   nextRunAt?: string | null;
@@ -1466,9 +1475,7 @@ function OrbitSection({
 
     void (async () => {
       try {
-        const response = await fetch('/api/orbit/run', { method: 'POST' });
-        if (!response.ok) throw new Error('Orbit run failed');
-        const payload = await response.json() as OrbitRunStartResponse;
+        const payload = await persistConfigAndRunOrbit(cfg);
         if (!payload.projectId) throw new Error('Orbit run did not return a project');
 
         onLeaveForOrbitProject();
