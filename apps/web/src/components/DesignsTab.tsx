@@ -98,11 +98,13 @@ export function DesignsTab({
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    let list: DesignListItem[] = projects.map((project) => ({
-      type: 'project',
-      project,
-      updatedAt: project.updatedAt,
-    }));
+    let list: DesignListItem[] = projects
+      .filter((project) => !shouldHideProjectCard(project, liveArtifactsByProject[project.id] ?? []))
+      .map((project) => ({
+        type: 'project',
+        project,
+        updatedAt: project.updatedAt,
+      }));
     const liveItems = projects.flatMap((project) =>
       (liveArtifactsByProject[project.id] ?? []).map((liveArtifact) => ({
         type: 'live-artifact' as const,
@@ -370,4 +372,14 @@ function artifactStatusLabel(
   if (refreshStatus === 'failed') return t('designs.statusRefreshFailed');
   if (refreshStatus === 'succeeded') return t('designs.statusRefreshed');
   return t('designs.statusLive');
+}
+
+function shouldHideProjectCard(project: Project, liveArtifacts: LiveArtifactSummary[]): boolean {
+  if (liveArtifacts.length === 0) return false;
+  return project.skillId === 'live-artifact' && isOrbitProject(project);
+}
+
+function isOrbitProject(project: Project): boolean {
+  const metadata = project.metadata as { kind?: unknown } | undefined;
+  return metadata?.kind === 'orbit';
 }
