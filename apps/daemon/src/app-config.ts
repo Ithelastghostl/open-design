@@ -115,10 +115,15 @@ function validateOrbit(raw: unknown): OrbitConfigPrefs | undefined {
   const time = typeof obj.time === 'string' && /^\d{2}:\d{2}$/.test(obj.time)
     ? obj.time
     : '08:00';
-  const templateSkillId = typeof obj.templateSkillId === 'string' && obj.templateSkillId.trim()
-    ? obj.templateSkillId.trim()
-    : null;
-  return { enabled, time, templateSkillId };
+  const orbit: OrbitConfigPrefs = { enabled, time };
+
+  if (Object.hasOwn(obj, 'templateSkillId')) {
+    orbit.templateSkillId = typeof obj.templateSkillId === 'string' && obj.templateSkillId.trim()
+      ? obj.templateSkillId.trim()
+      : null;
+  }
+
+  return orbit;
 }
 
 export function agentCliEnvForAgent(
