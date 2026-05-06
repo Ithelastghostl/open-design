@@ -5,7 +5,8 @@ const webPort = Number(process.env.OD_WEB_PORT) || 17_573;
 const baseURL = `http://127.0.0.1:${webPort}`;
 
 export default defineConfig({
-  testDir: './ui',
+  testDir: './',
+  testMatch: ['specs/**/*.spec.ts', 'tests/**/*.pw.ts'],
   outputDir: './ui/reports/test-results',
   timeout: 30_000,
   expect: {

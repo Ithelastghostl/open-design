@@ -35,6 +35,43 @@ type MediaSnapshot = {
   savedBaseUrl: string | null;
 };
 
+type NotificationsSnapshot = {
+  dialogOpen: boolean;
+  soundEnabled: boolean;
+  successSoundId: string | null;
+  failureSoundId: string | null;
+  activeSuccessLabel: string | null;
+  activeFailureLabel: string | null;
+};
+
+type ConnectorSnapshot = {
+  dialogOpen: boolean;
+  fieldValue: string | null;
+  savedApiKey: string | null;
+  apiKeyConfigured: boolean;
+  apiKeyTail: string | null;
+  savedBadgeText: string | null;
+};
+
+type PetSettingsSnapshot = {
+  dialogOpen: boolean;
+  savedAdopted: boolean | null;
+  savedEnabled: boolean | null;
+  savedPetId: string | null;
+  savedName: string | null;
+  savedGlyph: string | null;
+  savedGreeting: string | null;
+  previewName: string | null;
+  previewGreeting: string | null;
+};
+
+type LibrarySnapshot = {
+  dialogOpen: boolean;
+  firstSkillId: string | null;
+  firstSkillName: string | null;
+  savedDisabledSkills: string[];
+};
+
 type ExecutionSnapshot = {
   dialogOpen: boolean;
   daemonSelected: boolean;
@@ -50,12 +87,6 @@ type AboutSnapshot = {
   platform: string | null;
   architecture: string | null;
   fallbackVisible: boolean;
-};
-
-type MaxTokensSnapshot = {
-  dialogOpen: boolean;
-  maxTokensValue: string | null;
-  savedMaxTokens: number | null;
 };
 
 type WelcomeSnapshot = {
@@ -108,6 +139,7 @@ test('desktop settings smoke opens the current API configuration on main', async
   }, 'model');
 
   await desktop.openSettings();
+  await openSettingsSection('Configure execution mode');
 
   await waitFor(async () => {
     const snapshot = await readSmokeSnapshot();
@@ -137,7 +169,7 @@ test('appearance preview applies immediately and reverts on cancel', async () =>
   }, 'theme');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
   await clickSegmentButton('Dark');
 
   await waitFor(async () => {
@@ -175,7 +207,7 @@ test('appearance save persists the selected theme', async () => {
   }, 'theme');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
   await clickSegmentButton('Dark');
   await clickFooterButtonByClass('primary');
 
@@ -187,7 +219,7 @@ test('appearance save persists the selected theme', async () => {
   });
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
 
   await waitFor(async () => {
     const snapshot = await readAppearanceSnapshot();
@@ -215,7 +247,7 @@ test('appearance save persists the light theme', async () => {
   }, 'theme');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
   await clickSegmentButton('Light');
   await clickFooterButtonByClass('primary');
 
@@ -227,7 +259,7 @@ test('appearance save persists the light theme', async () => {
   });
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
 
   await waitFor(async () => {
     const snapshot = await readAppearanceSnapshot();
@@ -255,7 +287,7 @@ test('appearance can switch from an explicit theme back to system', async () => 
   }, 'theme');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
   await clickSegmentButton('System');
 
   await waitFor(async () => {
@@ -276,7 +308,7 @@ test('appearance can switch from an explicit theme back to system', async () => 
   });
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(3);
+  await openSettingsSection('Appearance');
 
   await waitFor(async () => {
     const snapshot = await readAppearanceSnapshot();
@@ -311,7 +343,7 @@ test('language selection updates html lang and persists the chosen locale', asyn
   `);
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(2);
+  await openSettingsSectionByIndex(4);
   await toggleLanguageMenu();
   await selectLanguageOption('Deutsch');
 
@@ -327,7 +359,7 @@ test('language selection updates html lang and persists the chosen locale', asyn
   await clickFooterButtonByClass('primary');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(2);
+  await openSettingsSectionByIndex(4);
 
   await waitFor(async () => {
     const snapshot = await readLanguageSnapshot();
@@ -355,7 +387,7 @@ test('media provider credentials save into localStorage config', async () => {
   }, 'model');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(1);
+  await openSettingsSection('Media providers');
   await setInputValueByAriaLabel('OpenAI API key', 'media-openai-key');
   await setInputValueByAriaLabel('OpenAI Base URL', 'https://media-proxy.example.com/v1');
 
@@ -372,6 +404,236 @@ test('media provider credentials save into localStorage config', async () => {
     assert.equal(snapshot.dialogOpen, false);
     assert.equal(snapshot.savedApiKey, 'media-openai-key');
     assert.equal(snapshot.savedBaseUrl, 'https://media-proxy.example.com/v1');
+  });
+});
+
+test('media provider clear removes saved credentials from config', async () => {
+  await resetLocaleToEnglish();
+  await desktop.seedConfigAndReload({
+    mode: 'api',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-5',
+    agentId: null,
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    mediaProviders: {
+      openai: {
+        apiKey: 'media-openai-key',
+        baseUrl: 'https://media-proxy.example.com/v1',
+      },
+    },
+    agentModels: {},
+    theme: 'system',
+  }, 'model');
+
+  await desktop.openSettings();
+  await openSettingsSection('Media providers');
+
+  await waitFor(async () => {
+    const snapshot = await readMediaSnapshot();
+    assert.equal(snapshot.dialogOpen, true);
+    assert.equal(snapshot.configuredBadgeVisible, true);
+    assert.equal(snapshot.savedApiKey, 'media-openai-key');
+    assert.equal(snapshot.savedBaseUrl, 'https://media-proxy.example.com/v1');
+  });
+
+  await clickMediaProviderClearButton('OpenAI');
+  await clickFooterButtonByClass('primary');
+
+  await waitFor(async () => {
+    const snapshot = await readMediaSnapshot();
+    assert.equal(snapshot.dialogOpen, false);
+    assert.equal(snapshot.configuredBadgeVisible, false);
+    assert.equal(snapshot.savedApiKey, null);
+    assert.equal(snapshot.savedBaseUrl, null);
+  });
+});
+
+test('notification sound settings persist the selected sounds', async () => {
+  await resetLocaleToEnglish();
+  await desktop.seedConfigAndReload({
+    mode: 'api',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-5',
+    agentId: null,
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    mediaProviders: {},
+    agentModels: {},
+    theme: 'system',
+    notifications: {
+      soundEnabled: false,
+      successSoundId: 'ding',
+      failureSoundId: 'buzz',
+      desktopEnabled: false,
+    },
+  }, 'model');
+
+  await desktop.openSettings();
+  await openSettingsSection('Notifications');
+  await clickSegmentButtonInGroup('Completion sound', 'offline');
+  await clickSegmentButtonInGroup('Success sound', 'Chime');
+  await clickSegmentButtonInGroup('Failure sound', 'Thud');
+  await clickFooterButtonByClass('primary');
+
+  await waitFor(async () => {
+    const snapshot = await readNotificationsSnapshot();
+    assert.equal(snapshot.dialogOpen, false);
+    assert.equal(snapshot.soundEnabled, true);
+    assert.equal(snapshot.successSoundId, 'chime');
+    assert.equal(snapshot.failureSoundId, 'thud');
+  });
+
+  await desktop.openSettings();
+  await openSettingsSection('Notifications');
+
+  await waitFor(async () => {
+    const snapshot = await readNotificationsSnapshot();
+    assert.equal(snapshot.dialogOpen, true);
+    assert.equal(snapshot.soundEnabled, true);
+    assert.equal(snapshot.successSoundId, 'chime');
+    assert.equal(snapshot.failureSoundId, 'thud');
+    assert.equal(snapshot.activeSuccessLabel, 'Chime');
+    assert.equal(snapshot.activeFailureLabel, 'Thud');
+  });
+});
+
+test('connector credentials save as a local daemon-backed Composio key and can be cleared', async () => {
+  await resetLocaleToEnglish();
+  await desktop.seedConfigAndReload({
+    mode: 'api',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-5',
+    agentId: null,
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    mediaProviders: {},
+    composio: {},
+    agentModels: {},
+    theme: 'system',
+  }, 'model');
+
+  await desktop.openSettings();
+  await openSettingsSection('Connectors');
+  await setInputValueByFieldLabel('Composio API Key', 'cmp_local_test_123456');
+
+  await waitFor(async () => {
+    const snapshot = await readConnectorSnapshot();
+    assert.equal(snapshot.dialogOpen, true);
+    assert.equal(snapshot.fieldValue, 'cmp_local_test_123456');
+  });
+
+  await clickConnectorClearButton();
+
+  await waitFor(async () => {
+    const snapshot = await readConnectorSnapshot();
+    assert.equal(snapshot.dialogOpen, true);
+    assert.equal(snapshot.fieldValue, '');
+  });
+
+  await setInputValueByFieldLabel('Composio API Key', 'cmp_local_test_123456');
+  await clickFooterButtonByClass('primary');
+
+  await waitFor(async () => {
+    const snapshot = await readConnectorSnapshot();
+    assert.equal(snapshot.dialogOpen, false);
+    assert.equal(snapshot.savedApiKey, '');
+    assert.equal(snapshot.apiKeyConfigured, true);
+    assert.equal(snapshot.apiKeyTail, '3456');
+  });
+});
+
+test('custom pet settings persist adoption and display fields', async () => {
+  await resetLocaleToEnglish();
+  await desktop.seedConfigAndReload({
+    mode: 'api',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-5',
+    agentId: null,
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    mediaProviders: {},
+    agentModels: {},
+    theme: 'system',
+    pet: {
+      adopted: false,
+      enabled: false,
+      petId: 'mochi',
+      custom: {
+        name: 'Buddy',
+        glyph: 'OD',
+        accent: '#c96442',
+        greeting: 'Hi! I am here whenever you need me.',
+      },
+    },
+  }, 'model');
+
+  await desktop.openSettings();
+  await openSettingsSection('Pets');
+  await clickTabByText('Custom');
+  await setInputValueByFieldLabel('Name', 'Nova');
+  await setInputValueByFieldLabel('Glyph', 'AI');
+  await setInputValueByFieldLabel('Greeting', 'Ready when you are.');
+  await clickSegmentButton('Use my pet');
+
+  await waitFor(async () => {
+    const snapshot = await readPetSettingsSnapshot();
+    assert.equal(snapshot.dialogOpen, true);
+    assert.equal(snapshot.previewName, 'Nova');
+    assert.equal(snapshot.previewGreeting, 'Ready when you are.');
+  });
+
+  await clickFooterButtonByClass('primary');
+
+  await waitFor(async () => {
+    const snapshot = await readPetSettingsSnapshot();
+    assert.equal(snapshot.dialogOpen, false);
+    assert.equal(snapshot.savedAdopted, true);
+    assert.equal(snapshot.savedEnabled, true);
+    assert.equal(snapshot.savedPetId, 'custom');
+    assert.equal(snapshot.savedName, 'Nova');
+    assert.equal(snapshot.savedGlyph, 'AI');
+    assert.equal(snapshot.savedGreeting, 'Ready when you are.');
+  });
+});
+
+test('skills library toggle persists a disabled skill selection', async () => {
+  await resetLocaleToEnglish();
+  await desktop.seedConfigAndReload({
+    mode: 'api',
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-5',
+    agentId: null,
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: true,
+    mediaProviders: {},
+    agentModels: {},
+    disabledSkills: [],
+    disabledDesignSystems: [],
+    theme: 'system',
+  }, 'model');
+
+  await desktop.openSettings();
+  await openSettingsSection('Skills & Design Systems');
+
+  const target = await waitForFirstLibrarySkill();
+  await toggleLibrarySkill(target.name);
+  await clickFooterButtonByClass('primary');
+
+  await waitFor(async () => {
+    const snapshot = await readLibrarySnapshot();
+    assert.equal(snapshot.dialogOpen, false);
+    assert.equal(snapshot.savedDisabledSkills.includes(target.id), true);
   });
 });
 
@@ -392,6 +654,7 @@ test('execution mode can switch between API and Local CLI when desktop runtime i
   }, 'model');
 
   await desktop.openSettings();
+  await openSettingsSection('Configure execution mode');
 
   await waitFor(async () => {
     const snapshot = await readExecutionSnapshot();
@@ -406,59 +669,16 @@ test('execution mode can switch between API and Local CLI when desktop runtime i
     const snapshot = await readExecutionSnapshot();
     assert.equal(snapshot.daemonSelected, true);
     assert.equal(snapshot.apiSelected, false);
-    assert.equal(snapshot.sectionTitle, 'Code agent');
+    assert.equal(snapshot.sectionTitle, 'Local CLI');
   });
 
-  await clickTabByText('Anthropic API');
+  await clickTabByText('BYOK');
 
   await waitFor(async () => {
     const snapshot = await readExecutionSnapshot();
     assert.equal(snapshot.daemonSelected, false);
     assert.equal(snapshot.apiSelected, true);
     assert.equal(snapshot.sectionTitle, 'Anthropic API');
-  });
-});
-
-test('max tokens saves and clears as an optional override', async () => {
-  await resetLocaleToEnglish();
-  await desktop.seedConfigAndReload({
-    mode: 'api',
-    apiKey: 'sk-test',
-    baseUrl: 'https://api.anthropic.com',
-    model: 'claude-sonnet-4-5',
-    maxTokens: undefined,
-    agentId: null,
-    skillId: null,
-    designSystemId: null,
-    onboardingCompleted: true,
-    mediaProviders: {},
-    agentModels: {},
-    theme: 'system',
-  }, 'model');
-
-  await desktop.openSettings();
-  await setInputValueByFieldLabel('Max tokens (optional)', '4096');
-  await clickFooterButtonByClass('primary');
-
-  await waitFor(async () => {
-    const snapshot = await readMaxTokensSnapshot();
-    assert.equal(snapshot.dialogOpen, false);
-    assert.equal(snapshot.savedMaxTokens, 4096);
-  });
-
-  await desktop.openSettings();
-  await waitFor(async () => {
-    const snapshot = await readMaxTokensSnapshot();
-    assert.equal(snapshot.maxTokensValue, '4096');
-  });
-
-  await setInputValueByFieldLabel('Max tokens (optional)', '');
-  await clickFooterButtonByClass('primary');
-
-  await waitFor(async () => {
-    const snapshot = await readMaxTokensSnapshot();
-    assert.equal(snapshot.dialogOpen, false);
-    assert.equal(snapshot.savedMaxTokens, null);
   });
 });
 
@@ -479,7 +699,7 @@ test('about section shows runtime metadata when daemon is online', async () => {
   }, 'model');
 
   await desktop.openSettings();
-  await openSettingsSectionByIndex(4);
+  await openSettingsSection('About');
 
   await waitFor(async () => {
     const snapshot = await readAboutSnapshot();
@@ -508,6 +728,17 @@ test('welcome settings can be skipped once and do not reopen on reload', async (
     agentModels: {},
     theme: 'system',
   }, 'onboardingCompleted');
+  await desktop.eval(`
+    (async () => {
+      await fetch('/api/app-config', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ onboardingCompleted: false }),
+      });
+      window.location.reload();
+      return true;
+    })()
+  `);
 
   await waitFor(async () => {
     const snapshot = await readWelcomeSnapshot();
@@ -535,6 +766,49 @@ test('welcome settings can be skipped once and do not reopen on reload', async (
   });
 });
 
+test('welcome get started saves a valid config and closes the onboarding dialog', async () => {
+  await resetLocaleToEnglish();
+  await desktop.seedConfigAndReload({
+    mode: 'api',
+    apiKey: 'sk-onboarding-valid',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-5',
+    agentId: null,
+    skillId: null,
+    designSystemId: null,
+    onboardingCompleted: false,
+    mediaProviders: {},
+    agentModels: {},
+    theme: 'system',
+  }, 'onboardingCompleted');
+  await desktop.eval(`
+    (async () => {
+      await fetch('/api/app-config', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ onboardingCompleted: false }),
+      });
+      window.location.reload();
+      return true;
+    })()
+  `);
+
+  await waitFor(async () => {
+    const snapshot = await readWelcomeSnapshot();
+    assert.equal(snapshot.dialogOpen, true);
+    assert.equal(snapshot.primaryButton, 'Get started');
+    assert.equal(snapshot.savedOnboardingCompleted, false);
+  });
+
+  await clickFooterButtonByClass('primary');
+
+  await waitFor(async () => {
+    const snapshot = await readWelcomeSnapshot();
+    assert.equal(snapshot.dialogOpen, false);
+    assert.equal(snapshot.savedOnboardingCompleted, true);
+  });
+});
+
 test('quick fill provider updates base url and model on the API settings page', async () => {
   await resetLocaleToEnglish();
   await desktop.seedConfigAndReload({
@@ -552,12 +826,13 @@ test('quick fill provider updates base url and model on the API settings page', 
   }, 'model');
 
   await desktop.openSettings();
+  await openSettingsSection('Configure execution mode');
   await setSelectValueByFieldLabel('Quick fill provider', '1');
 
   await waitFor(async () => {
     const snapshot = await readSmokeSnapshot();
-    assert.equal(snapshot.baseUrl, 'https://token-plan-cn.xiaomimimo.com/v1');
-    assert.equal(snapshot.model, 'mimo-v2.5-pro');
+    assert.equal(snapshot.baseUrl, 'https://api.deepseek.com/anthropic');
+    assert.equal(snapshot.model, 'deepseek-chat');
   });
 });
 
@@ -863,7 +1138,21 @@ test('design files can be deleted from the design files browser and stay deleted
     const popoverOpen = await desktop.eval<boolean>(`Boolean(document.querySelector('[data-testid="design-file-menu-popover"]'))`);
     assert.equal(popoverOpen, true);
   });
-  await clickPopoverButton('Delete');
+  await waitFor(async () => {
+    const clicked = await desktop.eval(`
+      (() => {
+        const popover = document.querySelector('[data-testid="design-file-menu-popover"]');
+        const button = Array.from(popover?.querySelectorAll('[data-testid]') ?? [])
+          .find((node) =>
+            node.getAttribute('data-testid')?.startsWith('design-file-delete-'),
+          );
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()
+    `);
+    assert.equal(clicked, true);
+  });
 
   await waitFor(async () => {
     const exists = await readDesignFileExists(projectId, fileName);
@@ -893,8 +1182,8 @@ async function readSmokeSnapshot(): Promise<SmokeSnapshot> {
         }
         return control.value;
       };
-      const apiTab = Array.from(document.querySelectorAll('[role="tab"]'))
-        .find((node) => node.textContent?.includes('Anthropic API'));
+      const apiTab = Array.from(document.querySelectorAll('.settings-content [role="tab"]'))
+        .find((node) => node.textContent?.includes('BYOK'));
       return {
         dialogOpen: Boolean(document.querySelector('[role="dialog"]')),
         heading: document.querySelector('.modal-head h2')?.textContent?.trim() ?? null,
@@ -955,36 +1244,106 @@ async function readMediaSnapshot(): Promise<MediaSnapshot> {
   `);
 }
 
-async function readExecutionSnapshot(): Promise<ExecutionSnapshot> {
-  return await desktop.eval<ExecutionSnapshot>(`
+async function readNotificationsSnapshot(): Promise<NotificationsSnapshot> {
+  return await desktop.eval<NotificationsSnapshot>(`
     (() => {
-      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-      const localCliTab = tabs.find((node) => node.textContent?.includes('Local CLI'));
-      const apiTab = tabs.find((node) => node.textContent?.includes('Anthropic API'));
+      const raw = window.localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
+      const parsed = raw ? JSON.parse(raw) : null;
+      const groups = Array.from(document.querySelectorAll('.settings-section [role="group"]'));
+      const successGroup = groups.find((node) =>
+        node.getAttribute('aria-label')?.trim() === 'Success sound',
+      );
+      const failureGroup = groups.find((node) =>
+        node.getAttribute('aria-label')?.trim() === 'Failure sound',
+      );
+      const activeLabel = (group) =>
+        group
+          ?.querySelector('.seg-btn[aria-pressed="true"] .seg-title')
+          ?.textContent
+          ?.trim() ?? null;
       return {
         dialogOpen: Boolean(document.querySelector('[role="dialog"]')),
-        daemonSelected: localCliTab?.getAttribute('aria-selected') === 'true',
-        apiSelected: apiTab?.getAttribute('aria-selected') === 'true',
-        sectionTitle: document.querySelector('.settings-section .section-head h3')?.textContent?.trim() ?? null,
+        soundEnabled: Boolean(parsed?.notifications?.soundEnabled),
+        successSoundId: parsed?.notifications?.successSoundId ?? null,
+        failureSoundId: parsed?.notifications?.failureSoundId ?? null,
+        activeSuccessLabel: activeLabel(successGroup),
+        activeFailureLabel: activeLabel(failureGroup),
       };
     })()
   `);
 }
 
-async function readMaxTokensSnapshot(): Promise<MaxTokensSnapshot> {
-  return await desktop.eval<MaxTokensSnapshot>(`
+async function readConnectorSnapshot(): Promise<ConnectorSnapshot> {
+  return await desktop.eval<ConnectorSnapshot>(`
     (() => {
       const raw = window.localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
       const parsed = raw ? JSON.parse(raw) : null;
-      const labelFields = Array.from(document.querySelectorAll('label.field'));
-      const field = labelFields.find((node) =>
-        node.querySelector('.field-label')?.textContent?.trim() === 'Max tokens (optional)',
-      );
+      const field = Array.from(document.querySelectorAll('label.field'))
+        .find((node) =>
+          node.querySelector('.field-label')?.textContent?.trim() === 'Composio API Key',
+        );
       const input = field?.querySelector('input');
       return {
         dialogOpen: Boolean(document.querySelector('[role="dialog"]')),
-        maxTokensValue: input instanceof HTMLInputElement ? input.value : null,
-        savedMaxTokens: typeof parsed?.maxTokens === 'number' ? parsed.maxTokens : null,
+        fieldValue: input instanceof HTMLInputElement ? input.value : null,
+        savedApiKey: parsed?.composio?.apiKey ?? null,
+        apiKeyConfigured: Boolean(parsed?.composio?.apiKeyConfigured),
+        apiKeyTail: parsed?.composio?.apiKeyTail ?? null,
+        savedBadgeText: document.querySelector('.field-status-badge')?.textContent?.trim() ?? null,
+      };
+    })()
+  `);
+}
+
+async function readPetSettingsSnapshot(): Promise<PetSettingsSnapshot> {
+  return await desktop.eval<PetSettingsSnapshot>(`
+    (() => {
+      const raw = window.localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
+      const parsed = raw ? JSON.parse(raw) : null;
+      return {
+        dialogOpen: Boolean(document.querySelector('[role="dialog"]')),
+        savedAdopted: typeof parsed?.pet?.adopted === 'boolean' ? parsed.pet.adopted : null,
+        savedEnabled: typeof parsed?.pet?.enabled === 'boolean' ? parsed.pet.enabled : null,
+        savedPetId: parsed?.pet?.petId ?? null,
+        savedName: parsed?.pet?.custom?.name ?? null,
+        savedGlyph: parsed?.pet?.custom?.glyph ?? null,
+        savedGreeting: parsed?.pet?.custom?.greeting ?? null,
+        previewName: document.querySelector('.pet-custom-bubble strong')?.textContent?.trim() ?? null,
+        previewGreeting: document.querySelector('.pet-custom-bubble span')?.textContent?.trim() ?? null,
+      };
+    })()
+  `);
+}
+
+async function readLibrarySnapshot(): Promise<LibrarySnapshot> {
+  return await desktop.eval<LibrarySnapshot>(`
+    (async () => {
+      const raw = window.localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
+      const parsed = raw ? JSON.parse(raw) : null;
+      const resp = await fetch('/api/skills');
+      const json = resp.ok ? await resp.json() : { skills: [] };
+      const first = Array.isArray(json?.skills) ? json.skills[0] : null;
+      return {
+        dialogOpen: Boolean(document.querySelector('[role="dialog"]')),
+        firstSkillId: typeof first?.id === 'string' ? first.id : null,
+        firstSkillName: typeof first?.name === 'string' ? first.name : null,
+        savedDisabledSkills: Array.isArray(parsed?.disabledSkills) ? parsed.disabledSkills : [],
+      };
+    })()
+  `);
+}
+
+async function readExecutionSnapshot(): Promise<ExecutionSnapshot> {
+  return await desktop.eval<ExecutionSnapshot>(`
+    (() => {
+      const tabs = Array.from(document.querySelectorAll('.settings-content [role="tab"]'));
+      const localCliTab = tabs.find((node) => node.textContent?.includes('Local CLI'));
+      const apiTab = tabs.find((node) => node.textContent?.includes('BYOK'));
+      return {
+        dialogOpen: Boolean(document.querySelector('[role="dialog"]')),
+        daemonSelected: localCliTab?.getAttribute('aria-selected') === 'true',
+        apiSelected: apiTab?.getAttribute('aria-selected') === 'true',
+        sectionTitle: document.querySelector('.settings-section .section-head h3')?.textContent?.trim() ?? null,
       };
     })()
   `);
@@ -1108,34 +1467,22 @@ async function readDesignFileExists(
 
 async function openSettingsSection(label: string): Promise<void> {
   const clicked = await desktop.eval(`
-    (() => {
+    (async () => {
       const button = Array.from(document.querySelectorAll('.settings-nav-item'))
         .find((node) => node.textContent?.includes(${JSON.stringify(label)}));
       if (!(button instanceof HTMLElement)) return false;
       button.click();
+      await new Promise((resolve) => setTimeout(resolve, 150));
       return true;
     })()
   `);
   assert.equal(clicked, true, `Expected to open settings section: ${label}`);
 }
 
-async function openSettingsSectionByIndex(index: number): Promise<void> {
-  const clicked = await desktop.eval(`
-    (() => {
-      const buttons = Array.from(document.querySelectorAll('.settings-nav-item'));
-      const button = buttons[${index}];
-      if (!(button instanceof HTMLElement)) return false;
-      button.click();
-      return true;
-    })()
-  `);
-  assert.equal(clicked, true, `Expected to open settings section index: ${index}`);
-}
-
 async function clickTabByText(label: string): Promise<void> {
   const clicked = await desktop.eval(`
     (() => {
-      const button = Array.from(document.querySelectorAll('[role="tab"]'))
+      const button = Array.from(document.querySelectorAll('.settings-content [role="tab"]'))
         .find((node) => node.textContent?.includes(${JSON.stringify(label)}));
       if (!(button instanceof HTMLElement)) return false;
       button.click();
@@ -1143,6 +1490,20 @@ async function clickTabByText(label: string): Promise<void> {
     })()
   `);
   assert.equal(clicked, true, `Expected to click tab: ${label}`);
+}
+
+async function openSettingsSectionByIndex(index: number): Promise<void> {
+  const clicked = await desktop.eval(`
+    (async () => {
+      const buttons = Array.from(document.querySelectorAll('.settings-nav-item'));
+      const button = buttons[${index}];
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      return true;
+    })()
+  `);
+  assert.equal(clicked, true, `Expected to open settings section index: ${index}`);
 }
 
 async function toggleLanguageMenu(): Promise<void> {
@@ -1181,6 +1542,27 @@ async function clickSegmentButton(label: string): Promise<void> {
     })()
   `);
   assert.equal(clicked, true, `Expected to click segment button: ${label}`);
+}
+
+async function clickSegmentButtonInGroup(groupLabel: string, buttonLabel: string): Promise<void> {
+  const clicked = await desktop.eval(`
+    (() => {
+      const groups = Array.from(document.querySelectorAll('[role="group"]'));
+      const group = groups.find((node) =>
+        node.getAttribute('aria-label')?.trim() === ${JSON.stringify(groupLabel)},
+      );
+      const button = Array.from(group?.querySelectorAll('.seg-btn') ?? [])
+        .find((node) => node.textContent?.includes(${JSON.stringify(buttonLabel)}));
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()
+  `);
+  assert.equal(
+    clicked,
+    true,
+    `Expected to click segment button ${buttonLabel} in group ${groupLabel}`,
+  );
 }
 
 async function setInputValueByAriaLabel(label: string, value: string): Promise<void> {
@@ -1263,6 +1645,72 @@ async function clickSelector(selector: string): Promise<void> {
     })()
   `);
   assert.equal(clicked, true, `Expected to click selector: ${selector}`);
+}
+
+async function clickMediaProviderClearButton(providerLabel: string): Promise<void> {
+  const clicked = await desktop.eval(`
+    (() => {
+      const row = Array.from(document.querySelectorAll('.media-provider-row'))
+        .find((node) => node.textContent?.includes(${JSON.stringify(providerLabel)}));
+      const button = row?.querySelector('.media-provider-body button.ghost');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()
+  `);
+  assert.equal(clicked, true, `Expected to clear media provider: ${providerLabel}`);
+}
+
+async function clickConnectorClearButton(): Promise<void> {
+  const clicked = await desktop.eval(`
+    (() => {
+      const rows = Array.from(document.querySelectorAll('label.field'));
+      const field = rows.find((node) =>
+        node.querySelector('.field-label')?.textContent?.trim() === 'Composio API Key',
+      );
+      const button = Array.from(field?.querySelectorAll('button') ?? [])
+        .find((node) => node.textContent?.trim() === 'Clear');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()
+  `);
+  assert.equal(clicked, true, 'Expected to click Composio clear button');
+}
+
+async function waitForFirstLibrarySkill(): Promise<{ id: string; name: string }> {
+  let target: { id: string; name: string } | null = null;
+  await waitFor(async () => {
+    target = await desktop.eval<{ id: string; name: string } | null>(`
+      (async () => {
+        const resp = await fetch('/api/skills');
+        const json = resp.ok ? await resp.json() : { skills: [] };
+        const first = Array.isArray(json?.skills) ? json.skills[0] : null;
+        if (typeof first?.id !== 'string' || typeof first?.name !== 'string') return null;
+        const card = Array.from(document.querySelectorAll('.library-card'))
+          .find((node) => node.querySelector('.library-card-name')?.textContent?.trim() === first.name);
+        return card ? { id: first.id, name: first.name } : null;
+      })()
+    `);
+    assert.ok(target);
+  }, 30_000);
+  return target!;
+}
+
+async function toggleLibrarySkill(skillName: string): Promise<void> {
+  const toggled = await desktop.eval(`
+    (() => {
+      const card = Array.from(document.querySelectorAll('.library-card'))
+        .find((node) =>
+          node.querySelector('.library-card-name')?.textContent?.trim() === ${JSON.stringify(skillName)},
+        );
+      const input = card?.querySelector('.toggle-switch input');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.click();
+      return true;
+    })()
+  `);
+  assert.equal(toggled, true, `Expected to toggle library skill: ${skillName}`);
 }
 
 async function clickByTestId(testId: string): Promise<void> {
