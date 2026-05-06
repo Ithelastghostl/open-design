@@ -497,6 +497,7 @@ export function EntryView({
             type="button"
             className="foot-pill"
             onClick={() => onOpenSettings()}
+            aria-label={t('settings.envConfigure')}
             title={t('settings.envConfigure')}
           >
             <Icon name="settings" size={12} />

@@ -570,12 +570,16 @@ export class ComposioConnectorProvider {
   private setPersistedDefinitions(definitions: ConnectorCatalogDefinition[], fetchedAt: string): void {
     this.persistedDefinitions = definitions.map((definition) => cloneConnectorDefinition(definition));
     this.persistedFetchedAt = fetchedAt;
-    writePersistedComposioCatalogCache(composioCatalogCacheFilePath, {
-      schemaVersion: 1,
-      fetchedAt,
-      provider: 'composio',
-      definitions: this.persistedDefinitions,
-    });
+    try {
+      writePersistedComposioCatalogCache(composioCatalogCacheFilePath, {
+        schemaVersion: 1,
+        fetchedAt,
+        provider: 'composio',
+        definitions: this.persistedDefinitions,
+      });
+    } catch (error) {
+      console.warn('[connectors] Failed to persist Composio catalog cache:', error);
+    }
   }
 
   async getDefinition(connectorId: string, signal?: AbortSignal): Promise<ConnectorCatalogDefinition | undefined> {

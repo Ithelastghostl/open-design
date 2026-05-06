@@ -97,12 +97,16 @@ function normalizeOrbitConfig(config: Partial<OrbitConfigPrefs> | undefined): Or
   const time = typeof config?.time === 'string' && /^\d{2}:\d{2}$/.test(config.time)
     ? config.time
     : DEFAULT_ORBIT_CONFIG.time;
+  const hasTemplateSkillId = config !== undefined && 'templateSkillId' in config;
+  const defaultTemplateSkillId = DEFAULT_ORBIT_CONFIG.templateSkillId ?? null;
   return {
     enabled: Boolean(config?.enabled),
     time,
-    templateSkillId: typeof config?.templateSkillId === 'string' && config.templateSkillId.trim()
-      ? config.templateSkillId.trim()
-      : null,
+    templateSkillId: !hasTemplateSkillId
+      ? defaultTemplateSkillId
+      : typeof config?.templateSkillId === 'string' && config.templateSkillId.trim()
+        ? config.templateSkillId.trim()
+        : null,
   };
 }
 
@@ -363,6 +367,7 @@ export class OrbitService {
     this.timer = setTimeout(() => {
       void this.start('scheduled').catch((error) => {
         console.warn('[orbit] Scheduled run failed:', error);
+        if (!this.inflight) this.reschedule();
       });
     }, Math.max(0, next.getTime() - Date.now()));
   }

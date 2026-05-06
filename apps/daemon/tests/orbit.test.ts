@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, rm } from 'node:fs/promises';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildOrbitPrompt,
@@ -65,6 +65,48 @@ describe('buildOrbitPrompt', () => {
 });
 
 describe('OrbitService', () => {
+  it('preserves the default template when config omits the field', async () => {
+    const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
+    try {
+      const service = new OrbitService(dataDir);
+
+      service.configure({ enabled: true, time: '08:00' });
+
+      await expect(service.status()).resolves.toMatchObject({
+        config: { templateSkillId: 'orbit-general' },
+      });
+      service.stop();
+    } finally {
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reschedules after an early scheduled start rejection', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 6, 7, 59, 0, 0));
+    const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
+    try {
+      const service = new OrbitService(dataDir);
+      service.setRunHandler(async () => {
+        throw new Error('agent unavailable');
+      });
+      service.configure({ enabled: true, time: '08:00' });
+      const firstNextRunAt = (await service.status()).nextRunAt;
+      expect(firstNextRunAt).not.toBeNull();
+
+      await vi.advanceTimersByTimeAsync(Date.parse(firstNextRunAt!) - Date.now());
+
+      const secondNextRunAt = (await service.status()).nextRunAt;
+      expect(secondNextRunAt).not.toBeNull();
+      expect(secondNextRunAt).not.toBe(firstNextRunAt);
+      expect(Date.parse(secondNextRunAt!)).toBeGreaterThan(Date.parse(firstNextRunAt!));
+      service.stop();
+    } finally {
+      vi.useRealTimers();
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it('sets connectorsChecked to the summed connector outcomes', async () => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
     try {

@@ -684,7 +684,7 @@ export class ConnectorService {
 
     this.enforceRunLimits(context);
 
-    const providerOutput = await this.executeConnectorProviderTool(request, context);
+    const providerOutput = await this.executeConnectorProviderTool(request, context, definition, tool);
     const protectedOutput = protectConnectorOutput(providerOutput);
     const output = protectedOutput.output;
     const outputSummary = summarizeConnectorOutput(output);
@@ -708,9 +708,14 @@ export class ConnectorService {
     };
   }
 
-  protected async executeConnectorProviderTool(request: ConnectorExecuteRequest, context: ConnectorExecutionContext): Promise<BoundedJsonObject> {
-    const definition = await this.getDefinition(request.connectorId, context.signal);
-    const tool = definition?.tools.find((candidate) => candidate.name === request.toolName);
+  protected async executeConnectorProviderTool(
+    request: ConnectorExecuteRequest,
+    context: ConnectorExecutionContext,
+    resolvedDefinition?: ConnectorCatalogDefinition,
+    resolvedTool?: ConnectorCatalogToolDefinition,
+  ): Promise<BoundedJsonObject> {
+    const definition = resolvedDefinition ?? await this.getDefinition(request.connectorId, context.signal);
+    const tool = resolvedTool ?? definition?.tools.find((candidate) => candidate.name === request.toolName);
     if (definition?.authentication === 'composio' && tool) {
       return composioConnectorProvider.execute(definition, tool, request.input, this.getCredential(request.connectorId)?.credentials, context.signal);
     }

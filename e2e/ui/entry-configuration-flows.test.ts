@@ -190,7 +190,8 @@ test('connectors search supports empty results and keyboard-closeable details', 
   await expect(connectorCard(settingsDialog, 'github')).toBeVisible();
   await expect(connectorCard(settingsDialog, 'slack')).toBeVisible();
 
-  await connectorCard(settingsDialog, 'github').click();
+  await connectorCard(settingsDialog, 'github').focus();
+  await connectorCard(settingsDialog, 'github').press('Enter');
   await expect(page.getByTestId('connector-drawer')).toBeVisible();
   await expect(page.getByTestId('connector-drawer')).toContainText('List issues');
   await page.keyboard.press('Escape');
