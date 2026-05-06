@@ -370,5 +370,6 @@ export class OrbitService {
         if (!this.inflight) this.reschedule();
       });
     }, Math.max(0, next.getTime() - Date.now()));
+    this.timer.unref();
   }
 }

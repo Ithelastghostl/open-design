@@ -1278,8 +1278,9 @@ function ConnectorSection({
     setCfg((curr) => ({ ...curr, composio: { ...(curr.composio ?? {}), ...patch } }));
   };
   const hasPendingEdit = Boolean(composio.apiKey?.trim());
-  const apiKeyConfigured = Boolean(hasPendingEdit || composio.apiKeyConfigured);
-  const isSavedState = apiKeyConfigured && !hasPendingEdit;
+  const savedApiKeyConfigured = Boolean(composio.apiKeyConfigured);
+  const apiKeyConfigured = Boolean(hasPendingEdit || savedApiKeyConfigured);
+  const isSavedState = savedApiKeyConfigured && !hasPendingEdit;
   const tail = composio.apiKeyTail?.trim();
 
   // The credentials field sits ABOVE the embedded catalog so the user lands
@@ -1352,7 +1353,7 @@ function ConnectorSection({
       </label>
 
       <ConnectorsBrowser
-        composioConfigured={apiKeyConfigured}
+        composioConfigured={savedApiKeyConfigured}
         onFocusComposioCredentials={focusComposioCredentials}
       />
     </section>
@@ -1459,6 +1460,14 @@ function OrbitSection({
   useEffect(() => {
     void refreshStatus();
   }, []);
+
+  useEffect(() => {
+    if (!status?.running) return undefined;
+    const interval = window.setInterval(() => {
+      void refreshStatus();
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [status?.running]);
 
   // Fetch the skills registry once on mount and filter to scenario === 'orbit'.
   // We tolerate fetch failure: fetchSkills already swallows errors and returns
