@@ -565,7 +565,7 @@ export function LiveArtifactViewer({
             <iframe
               data-testid="live-artifact-preview-frame"
               title={liveArtifact.title}
-              sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+              sandbox="allow-scripts allow-popups"
               src={previewUrl}
             />
           </div>
