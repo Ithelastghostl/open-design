@@ -84,7 +84,11 @@ export interface OrbitStatus {
 export const DEFAULT_ORBIT_CONFIG: OrbitConfigPrefs = {
   enabled: false,
   time: '08:00',
-  templateSkillId: null,
+  // Default to the general-purpose Orbit briefing skill so the daemon
+  // runs an adaptive template out of the box. Mirrors apps/web's
+  // DEFAULT_ORBIT — both surfaces must agree on the seed value to avoid
+  // a "default in UI, null on disk" drift after the first save.
+  templateSkillId: 'orbit-general',
 };
 
 const SUMMARY_FILE = 'activity-summary.json';
@@ -171,9 +175,9 @@ export function buildOrbitPrompt(now = new Date(), template?: OrbitTemplateSelec
     `Time window: ${start} through ${end}.`,
     '',
     'Work autonomously. Do not ask follow-up questions, do not emit a question form, and do not wait for user input. Use sensible defaults and proceed.',
-    'Optimize for fast completion: sample at most 3 relevant data sources. DAILY DIGEST CONNECTOR CURATION IS REQUIRED: first run `tools connectors list --use-case personal_daily_digest --format compact` with a 120s timeout, and if that curated list command times out or returns no output, retry it once with another 120s timeout. Only if the curated command succeeds but returns no usable tools may you fall back to the unfiltered read-only list via `tools connectors list --format compact`. If connector discovery still fails, or if both the curated and fallback lists yield zero usable connected read-only data tools, do not create an empty-state artifact; send one concise final message explaining that data loading failed and stop. For individual source calls after discovery succeeds, if a source fails because of auth, permissions, timeout, malformed output, empty output, oversized output, or any other data-loading problem, do not get stuck trying to fix it; drop that source and continue with the others. After the artifact is registered successfully, send one concise final message with the artifact id and stop.',
+    'Optimize for fast completion: sample at most 3 relevant data sources. DAILY DIGEST CONNECTOR CURATION IS REQUIRED WHEN SUPPORTED: first run `tools connectors list --use-case personal_daily_digest --format compact` with a 120s timeout, and if that curated list command times out or returns no output, retry it once with another 120s timeout. If the curated command is unsupported, rejected, or succeeds but returns no usable tools, immediately fall back to the unfiltered read-only list via `tools connectors list --format compact`; do not stop just because `--use-case` is unsupported. If connector discovery still fails, or if both the curated and fallback lists yield zero usable connected read-only data tools, do not create an empty-state artifact; send one concise final message explaining that data loading failed and stop. For individual source calls after discovery succeeds, if a source fails because of auth, permissions, timeout, malformed output, empty output, oversized output, or any other data-loading problem, do not get stuck trying to fix it; drop that source and continue with the others. After the artifact is registered successfully, send one concise final message with the artifact id and stop.',
     '',
-    'Use the live-artifact skill to author and register the artifact. Prefer the curated daily-digest connector list first: `tools connectors list --use-case personal_daily_digest --format compact`. Only if that returns no usable tools should you fall back to the unfiltered read-only list. Then call only the tools needed for a useful digest.',
+    'Use the live-artifact skill to author and register the artifact. Prefer the curated daily-digest connector list first: `tools connectors list --use-case personal_daily_digest --format compact`. If that command is unsupported, rejected, or returns no usable tools, fall back to the unfiltered read-only list. Then call only the tools needed for a useful digest.',
     '- Prefer recent activity, search, list, updated, or changed-item tools that can be bounded to this 24-hour window.',
     '- Avoid provider metadata, api_root, schema, health, status, broad fetch_all, or block-content dump tools unless they are truly necessary.',
     '- When a tool needs an input file, write a small JSON file under `.daily-digest-tmp/` (create it if missing). Files at the project root show up in the user-facing Design Files panel, while dot-prefixed paths are hidden. Reuse the same path when retrying the same tool.',

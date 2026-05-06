@@ -37,9 +37,9 @@ describe('buildOrbitPrompt', () => {
   it('prioritizes curated daily digest connector discovery before fallback listing', () => {
     const prompt = buildOrbitPrompt(new Date('2026-05-06T15:32:52.361Z'));
 
-    expect(prompt).toContain('DAILY DIGEST CONNECTOR CURATION IS REQUIRED');
+    expect(prompt).toContain('DAILY DIGEST CONNECTOR CURATION IS REQUIRED WHEN SUPPORTED');
     expect(prompt).toContain('tools connectors list --use-case personal_daily_digest --format compact');
-    expect(prompt).toContain('Only if the curated command succeeds but returns no usable tools may you fall back');
+    expect(prompt).toContain('do not stop just because `--use-case` is unsupported');
   });
 
   it('renders the selected template skill body as authoritative run instructions', () => {

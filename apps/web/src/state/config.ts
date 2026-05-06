@@ -45,7 +45,11 @@ export const DEFAULT_PET: PetConfig = {
 export const DEFAULT_ORBIT: OrbitConfig = {
   enabled: false,
   time: '08:00',
-  templateSkillId: null,
+  // Ship with the general-purpose Orbit briefing skill pre-selected so a
+  // fresh install runs against a real adaptive template instead of the
+  // bare built-in prompt. Users can clear it from Settings → Orbit to fall
+  // back to the built-in prompt or pick another scenario === 'orbit' skill.
+  templateSkillId: 'orbit-general',
 };
 
 export const DEFAULT_CONFIG: AppConfig = {
