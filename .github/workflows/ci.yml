@@ -48,7 +48,7 @@ jobs:
             patterns=(
               "apps/desktop/"
               "apps/packaged/"
-              "apps/daemon/sidecar/"
+              "apps/daemon/src/sidecar/"
               "apps/web/sidecar/"
               "packages/platform/"
               "packages/sidecar/"
