@@ -563,11 +563,11 @@ describe('SettingsDialog execution settings Local CLI interactions', () => {
     expect(onRefreshAgents).toHaveBeenCalledTimes(1);
 
     pending.resolve(nextAgents);
-    await Promise.resolve();
-    await Promise.resolve();
 
-    expect(screen.getByText('Scan complete. 2 available.')).toBeTruthy();
-    expect((screen.getByRole('button', { name: /Rescan/i }) as HTMLButtonElement).disabled).toBe(false);
+    await waitFor(() => {
+      expect(screen.getByText('Scan complete. 2 available.')).toBeTruthy();
+      expect((screen.getByRole('button', { name: /Rescan/i }) as HTMLButtonElement).disabled).toBe(false);
+    });
   });
 
   it('renders an error notice when rescan fails', async () => {
@@ -583,10 +583,9 @@ describe('SettingsDialog execution settings Local CLI interactions', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Local CLI.*1 installed/i }));
     fireEvent.click(screen.getByRole('button', { name: /Rescan/i }));
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(screen.getByText('Scan failed. Check the daemon and try again.')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText('Scan failed. Check the daemon and try again.')).toBeTruthy();
+    });
   });
 
   it('saves CLI config locations from the execution form', () => {
@@ -1318,7 +1317,14 @@ describe('SettingsDialog appearance interactions', () => {
 });
 
 describe('SettingsDialog pets interactions', () => {
+  const clipboardDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
+
   afterEach(() => {
+    if (clipboardDescriptor) {
+      Object.defineProperty(window.navigator, 'clipboard', clipboardDescriptor);
+    } else {
+      delete (window.navigator as Navigator & { clipboard?: Clipboard }).clipboard;
+    }
     cleanup();
   });
 

@@ -11,6 +11,7 @@
 ## 对应测试文件
 
 - `e2e/ui/entry-configuration-flows.test.ts`
+- `e2e/ui/entry-chrome-flows.test.ts`
 - `e2e/ui/app.test.ts`
 
 ## 已自动化
@@ -19,20 +20,21 @@
 
 | ID | 场景 | 来源 |
 | --- | --- | --- |
-| ENTRY-001 | 切换项目类型标签时，表单区域正确变化，且 prototype 草稿名不会丢失 | `entry-configuration-flows.test.ts` |
-| ENTRY-002 | 提示词模板加载失败后重试，编辑后的模板正文会写入项目 metadata | `entry-configuration-flows.test.ts` |
-| ENTRY-003 | live artifact 的空状态连接器 CTA 会跳转到受保护的 connector setup 路径 | `entry-configuration-flows.test.ts` |
-| ENTRY-004 | connectors 入口支持搜索、空结果态，以及详情抽屉的键盘关闭 | `entry-configuration-flows.test.ts` |
-| ENTRY-005 | 在 Settings 里保存 Composio key 后，Entry 页 connectors gate 会立即解锁，搜索和卡片可直接使用 | `entry-configuration-flows.test.ts` |
-| ENTRY-006 | 创建原型时切换到 `Wireframe` 后，即使先切到其他项目类型再切回，`fidelity` 选择也会保留，并正确写入创建 payload | `NewProjectPanel.test.tsx` |
-| ENTRY-007 | 创建原型时在 design system 多选模式下切回 `不指定 — 自由发挥`，会清空主设计体系和 inspiration metadata | `NewProjectPanel.test.tsx` |
-| ENTRY-008 | 创建原型时若项目名为空白，会回退到自动生成的默认标题而不是提交空名 | `NewProjectPanel.test.tsx` |
-| ENTRY-009 | 创建实时制品时会把 `kind=prototype`、`intent=live-artifact` 和当前 `fidelity` 一并写入创建 payload | `NewProjectPanel.test.tsx` |
-| ENTRY-010 | 创建幻灯片时，开启 `Use speaker notes` 会把 `speakerNotes=true` 写入创建 metadata | `NewProjectPanel.test.tsx` |
-| ENTRY-011 | 从模板创建在没有用户模板时不会误触发创建；有模板时会带上 `templateId/templateLabel` 正常提交 | `NewProjectPanel.test.tsx` |
-| ENTRY-012 | 创建图片项目时，所选 `aspect` 与修剪后的 `style notes` 会正确写入创建 payload | `NewProjectPanel.test.tsx` |
-| ENTRY-013 | 创建视频项目时，所选 `aspect` 与 `duration` 会正确写入创建 payload | `NewProjectPanel.test.tsx` |
-| ENTRY-014 | 创建音频项目时，所选 `duration` 与修剪后的 `voice` 会正确写入创建 payload | `NewProjectPanel.test.tsx` |
+| ENTRY-001 | 提示词模板加载失败后重试，编辑后的模板正文会写入项目 metadata | `entry-configuration-flows.test.ts` |
+| ENTRY-002 | live artifact 的空状态连接器 CTA 会跳转到受保护的 connector setup 路径 | `entry-configuration-flows.test.ts` |
+| ENTRY-003 | connectors 入口支持搜索、空结果态，以及详情抽屉的键盘关闭 | `entry-configuration-flows.test.ts` |
+| ENTRY-004 | 在 Settings 里保存 Composio key 后，Entry 页 connectors gate 会立即解锁，搜索和卡片可直接使用 | `entry-configuration-flows.test.ts` |
+| ENTRY-005 | 创建原型时切换到 `Wireframe` 后，即使先切到其他项目类型再切回，`fidelity` 选择也会保留，并正确写入创建 payload | `NewProjectPanel.test.tsx` |
+| ENTRY-006 | 创建原型时在 design system 多选模式下切回 `不指定 — 自由发挥`，会清空主设计体系和 inspiration metadata | `NewProjectPanel.test.tsx` |
+| ENTRY-007 | 创建原型时若项目名为空白，会回退到自动生成的默认标题而不是提交空名 | `NewProjectPanel.test.tsx` |
+| ENTRY-008 | 创建实时制品时会把 `kind=prototype`、`intent=live-artifact` 和当前 `fidelity` 一并写入创建 payload | `NewProjectPanel.test.tsx` |
+| ENTRY-009 | 创建幻灯片时，开启 `Use speaker notes` 会把 `speakerNotes=true` 写入创建 metadata | `NewProjectPanel.test.tsx` |
+| ENTRY-010 | 从模板创建在没有用户模板时不会误触发创建；有模板时会带上 `templateId/templateLabel` 正常提交 | `NewProjectPanel.test.tsx` |
+| ENTRY-011 | 创建图片项目时，所选 `aspect` 与修剪后的 `style notes` 会正确写入创建 payload | `NewProjectPanel.test.tsx` |
+| ENTRY-012 | 创建视频项目时，所选 `aspect` 与 `duration` 会正确写入创建 payload | `NewProjectPanel.test.tsx` |
+| ENTRY-013 | 创建音频项目时，所选 `duration` 与修剪后的 `voice` 会正确写入创建 payload | `NewProjectPanel.test.tsx` |
+| ENTRY-014 | 顶部 settings menu 可以切换 pet rail 的显示/隐藏 | `entry-chrome-flows.test.ts` |
+| ENTRY-015 | 紧凑桌面宽度下，入口页 header 与整页不会出现明显横向溢出 | `entry-chrome-flows.test.ts` |
 
 ### 资源驱动创建场景
 
@@ -48,8 +50,6 @@
 | ID | 场景 | 原因 |
 | --- | --- | --- |
 | ENTRY-C01 | 更多 image template / video template 的入口创建流 | 业务有价值，但当前入口覆盖仍以主路径为主，可在模板能力稳定后补进自动化 |
-| ENTRY-C02 | 顶部 chrome 与首页入口联动行为 | 适合自动化，但当前仍有一个未正式纳入版本管理的 `entry-chrome-flows.test.ts` 文件待收口 |
-
 ## 手工保留
 
 | ID | 场景 | 原因 |
