@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { ConnectorDetail, ConnectorStatusResponse } from '@open-design/contracts';
 import { useT } from '../i18n';
+import type { Dict } from '../i18n/types';
 import {
   connectConnector,
   disconnectConnector,
@@ -93,6 +94,123 @@ const PROVIDER_TABS: ReadonlyArray<{
 ];
 
 const DEFAULT_PROVIDER_TAB_ID = 'composio';
+
+const CONNECTOR_CATEGORY_KEYS = {
+  'accounting': 'connectors.category.accounting',
+  'admin': 'connectors.category.admin',
+  'ads & conversion': 'connectors.category.advertising',
+  'advertising': 'connectors.category.advertising',
+  'ai agents': 'connectors.category.aiAgents',
+  'ai chatbots': 'connectors.category.aiAgents',
+  'ai infrastructure': 'connectors.category.aiInfrastructure',
+  'ai meeting assistants': 'connectors.category.meetings',
+  'analytics': 'connectors.category.analytics',
+  'artificial intelligence': 'connectors.category.aiAgents',
+  'automation': 'connectors.category.automation',
+  'bookmark managers': 'connectors.category.personal',
+  'calendar': 'connectors.category.calendar',
+  'cms': 'connectors.category.cms',
+  'code': 'connectors.category.developer',
+  'commerce': 'connectors.category.commerce',
+  'communication': 'connectors.category.communication',
+  'connectors': 'connectors.category.integration',
+  'contacts': 'connectors.category.contacts',
+  'crm': 'connectors.category.crm',
+  'customer support': 'connectors.category.support',
+  'data platform': 'connectors.category.dataPlatform',
+  'database': 'connectors.category.database',
+  'databases': 'connectors.category.database',
+  'design': 'connectors.category.design',
+  'developer': 'connectors.category.developer',
+  'developer tools': 'connectors.category.developer',
+  'documents': 'connectors.category.documentation',
+  'documentation': 'connectors.category.documentation',
+  'ecommerce': 'connectors.category.commerce',
+  'education': 'connectors.category.education',
+  'email': 'connectors.category.email',
+  'email newsletters': 'connectors.category.email',
+  'erp': 'connectors.category.erp',
+  'electronics': 'connectors.category.commerce',
+  'events': 'connectors.category.events',
+  'event management': 'connectors.category.events',
+  'example': 'connectors.category.integration',
+  'feedback': 'connectors.category.surveys',
+  'field service': 'connectors.category.fieldService',
+  'file management & storage': 'connectors.category.storage',
+  'finance': 'connectors.category.finance',
+  'fitness': 'connectors.category.fitness',
+  'forms': 'connectors.category.forms',
+  'forms & surveys': 'connectors.category.forms',
+  'fundraising': 'connectors.category.nonprofit',
+  'gaming': 'connectors.category.gaming',
+  'hospitality': 'connectors.category.hospitality',
+  'hr': 'connectors.category.hr',
+  'hr talent & recruitment': 'connectors.category.recruiting',
+  'human resources': 'connectors.category.hr',
+  'images & design': 'connectors.category.design',
+  'important': 'connectors.category.integration',
+  'integration': 'connectors.category.integration',
+  'itsm': 'connectors.category.itsm',
+  'it operations': 'connectors.category.itsm',
+  'localization': 'connectors.category.localization',
+  'logistics': 'connectors.category.logistics',
+  'maps': 'connectors.category.maps',
+  'marketing': 'connectors.category.marketing',
+  'marketing automation': 'connectors.category.marketing',
+  'media': 'connectors.category.media',
+  'meetings': 'connectors.category.meetings',
+  'model context protocol': 'connectors.category.developer',
+  'news & lifestyle': 'connectors.category.media',
+  'nonprofit': 'connectors.category.nonprofit',
+  'notes': 'connectors.category.documentation',
+  'notifications': 'connectors.category.communication',
+  'observability': 'connectors.category.observability',
+  'online courses': 'connectors.category.education',
+  'payments': 'connectors.category.payments',
+  'payment processing': 'connectors.category.payments',
+  'personal': 'connectors.category.personal',
+  'phone & sms': 'connectors.category.communication',
+  'presentations': 'connectors.category.presentations',
+  'premium': 'connectors.category.integration',
+  'procurement': 'connectors.category.procurement',
+  'product': 'connectors.category.product',
+  'product management': 'connectors.category.product',
+  'productivity': 'connectors.category.productivity',
+  'productivity & project management': 'connectors.category.projectManagement',
+  'project management': 'connectors.category.projectManagement',
+  'proposal & invoice management': 'connectors.category.accounting',
+  'recruiting': 'connectors.category.recruiting',
+  'research': 'connectors.category.research',
+  'sales': 'connectors.category.salesIntelligence',
+  'sales intelligence': 'connectors.category.salesIntelligence',
+  'scheduling': 'connectors.category.scheduling',
+  'scheduling & booking': 'connectors.category.scheduling',
+  'search': 'connectors.category.search',
+  'security': 'connectors.category.security',
+  'security & identity tools': 'connectors.category.security',
+  'server monitoring': 'connectors.category.observability',
+  'signing': 'connectors.category.signing',
+  'signatures': 'connectors.category.signing',
+  'social': 'connectors.category.social',
+  'social media accounts': 'connectors.category.social',
+  'social media marketing': 'connectors.category.marketing',
+  'spreadsheets': 'connectors.category.spreadsheets',
+  'storage': 'connectors.category.storage',
+  'support': 'connectors.category.support',
+  'surveys': 'connectors.category.surveys',
+  'task management': 'connectors.category.tasks',
+  'tasks': 'connectors.category.tasks',
+  'team chat': 'connectors.category.communication',
+  'team collaboration': 'connectors.category.communication',
+  'time tracking': 'connectors.category.timeTracking',
+  'time tracking software': 'connectors.category.timeTracking',
+  'url shortener': 'connectors.category.marketing',
+  'video': 'connectors.category.video',
+  'video & audio': 'connectors.category.video',
+  'video conferencing': 'connectors.category.meetings',
+  'website builders': 'connectors.category.cms',
+  'whiteboard': 'connectors.category.whiteboard',
+} as const satisfies Record<string, keyof Dict>;
 
 export function ConnectorsBrowser({
   composioConfigured,
@@ -427,6 +545,7 @@ function ConnectorCard({
   const toolCount = connector.tools.length;
   const showToolsBadge = toolsLoaded;
   const toolsBadgeLabel = formatToolsBadge(toolCount, t);
+  const categoryLabel = connectorCategoryLabel(connector.category, t);
 
   function openDetails() {
     if (disabled) return;
@@ -459,7 +578,7 @@ function ConnectorCard({
         <div className="connector-card-head">
           <h3 className="connector-card-title">{connector.name}</h3>
           <div className="connector-meta">
-            <span className="connector-meta-item">{connector.category}</span>
+            <span className="connector-meta-item">{categoryLabel}</span>
             {showToolsBadge ? (
               <>
                 <span className="connector-meta-dot" aria-hidden>·</span>
@@ -539,6 +658,12 @@ function statusLabel(status: ConnectorDetail['status'], t: ReturnType<typeof use
   }
 }
 
+function connectorCategoryLabel(category: string, t: ReturnType<typeof useT>): string {
+  const normalized = category.trim().toLowerCase();
+  const key = CONNECTOR_CATEGORY_KEYS[normalized as keyof typeof CONNECTOR_CATEGORY_KEYS];
+  return key ? t(key) : category;
+}
+
 function formatToolsBadge(count: number, t: ReturnType<typeof useT>): string {
   if (count === 0) return t('connectors.toolsBadgeNone');
   if (count === 1) return t('connectors.toolsBadgeOne', { n: count });
@@ -576,6 +701,7 @@ function ConnectorDetailDrawer({
   const isLoadingTools = !toolsLoaded || (toolsLoading && toolCount === 0);
   const showToolsBadge = toolsLoaded;
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const categoryLabel = connectorCategoryLabel(connector.category, t);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -615,7 +741,7 @@ function ConnectorDetailDrawer({
         <header className="connector-drawer-head">
           <div className="connector-drawer-titles">
             <div className="connector-drawer-eyebrow">
-              <span>{connector.category}</span>
+              <span>{categoryLabel}</span>
               <span className="connector-meta-dot" aria-hidden>·</span>
               <span>{connector.provider}</span>
             </div>
@@ -662,7 +788,7 @@ function ConnectorDetailDrawer({
               </div>
               <div>
                 <dt>{t('connectors.categoryLabel')}</dt>
-                <dd>{connector.category}</dd>
+                <dd>{categoryLabel}</dd>
               </div>
               <div>
                 <dt>{t('connectors.providerLabel')}</dt>

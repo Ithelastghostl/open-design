@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { LOCALE_LABEL, LOCALES, useI18n } from '../i18n';
 import type { Locale } from '../i18n';
+import type { Dict } from '../i18n/types';
 import { AgentIcon } from './AgentIcon';
 import { Icon } from './Icon';
 import {
@@ -917,8 +918,8 @@ export function SettingsDialog({
             >
               <Icon name="sliders" size={18} />
               <span>
-                <strong>Connectors</strong>
-                <small>External system connections</small>
+                <strong>{t('connectors.title')}</strong>
+                <small>{t('settings.connectorsNavHint')}</small>
               </span>
             </button>
             <button
@@ -928,8 +929,8 @@ export function SettingsDialog({
             >
               <Icon name="orbit" size={18} />
               <span>
-                <strong>Orbit</strong>
-                <small>Daily connector summary</small>
+                <strong>{t('settings.orbit.title')}</strong>
+                <small>{t('settings.orbit.navHint')}</small>
               </span>
             </button>
             <button
@@ -1774,6 +1775,7 @@ function ConnectorSection({
   cfg: AppConfig;
   setCfg: Dispatch<SetStateAction<AppConfig>>;
 }) {
+  const { t } = useI18n();
   const composio = cfg.composio ?? {};
 
   const updateComposio = (patch: NonNullable<AppConfig['composio']>) => {
@@ -1801,18 +1803,23 @@ function ConnectorSection({
     <section className="settings-section settings-section-connectors">
       <div className="section-head">
         <div>
-          <h3>Connectors</h3>
-          <p className="hint">Manage connector and tool provider settings for this device.</p>
+          <h3>{t('connectors.title')}</h3>
+          <p className="hint">{t('settings.connectorsHint')}</p>
         </div>
       </div>
 
       <label className="field settings-section-connectors-credentials" ref={credentialsRef}>
         <span className="field-label-row">
           <span className="field-label-group">
-            <span className="field-label">Composio API Key</span>
+            <span className="field-label">{t('settings.connectorsComposioApiKey')}</span>
             {hasSavedKey ? (
-              <span className="field-status-badge" title="Saved to local daemon">
-                {tail ? `Saved · ••••${tail}` : 'Saved'}
+              <span
+                className="field-status-badge"
+                title={t('settings.connectorsSavedTitle')}
+              >
+                {tail
+                  ? t('settings.connectorsSavedWithTail', { tail })
+                  : t('settings.connectorsSaved')}
               </span>
             ) : null}
           </span>
@@ -1822,7 +1829,7 @@ function ConnectorSection({
             target="_blank"
             rel="noreferrer"
           >
-            Get API Key
+            {t('settings.connectorsGetApiKey')}
             <Icon name="external-link" size={11} />
           </a>
         </span>
@@ -1831,7 +1838,11 @@ function ConnectorSection({
             ref={apiKeyInputRef}
             type="password"
             value={composio.apiKey ?? ''}
-            placeholder={hasSavedKey ? 'Paste a new key to replace the saved one' : 'Paste Composio API key'}
+            placeholder={
+              hasSavedKey
+                ? t('settings.connectorsReplaceKeyPlaceholder')
+                : t('settings.connectorsApiKeyPlaceholder')
+            }
             onChange={(e) => updateComposio({ apiKey: e.target.value })}
             aria-describedby="composio-api-key-help"
           />
@@ -1841,17 +1852,15 @@ function ConnectorSection({
             disabled={!apiKeyConfigured}
             onClick={() => updateComposio({ apiKey: '', apiKeyConfigured: false, apiKeyTail: '' })}
           >
-            Clear
+            {t('settings.connectorsClear')}
           </button>
         </div>
         <span id="composio-api-key-help" className="hint">
-          {credentialState === 'saved-pending'
-            ? 'Unsaved replacement. Click Save to overwrite the saved key, or Clear to discard the draft and the saved key.'
-            : credentialState === 'saved'
-              ? 'Your key stays in the local daemon. Paste a new key above to replace it, or Clear to remove.'
-              : credentialState === 'pending-new'
-                ? 'Unsaved changes. Click Save to store this key in the local daemon.'
-                : 'Keys are stored locally in the daemon and never sent through environment variables.'}
+          {hasSavedKey
+            ? t('settings.connectorsHelpSaved')
+            : apiKeyConfigured
+              ? t('settings.connectorsHelpUnsaved')
+              : t('settings.connectorsHelpEmpty')}
         </span>
       </label>
 
@@ -1918,18 +1927,21 @@ interface OrbitStatusResponse {
   lastRun?: OrbitRunSummary | null;
 }
 
-function formatRelative(iso: string | undefined | null): string | null {
+function formatRelative(
+  iso: string | undefined | null,
+  t: (key: keyof Dict, vars?: Record<string, string | number>) => string,
+): string | null {
   if (!iso) return null;
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return null;
   const diffMs = Date.now() - then;
   const absMin = Math.round(Math.abs(diffMs) / 60_000);
-  if (absMin < 1) return 'just now';
-  if (absMin < 60) return `${diffMs < 0 ? 'in ' : ''}${absMin} min${absMin === 1 ? '' : 's'}${diffMs >= 0 ? ' ago' : ''}`;
+  if (absMin < 1) return t('common.justNow');
+  if (absMin < 60) return t('common.minutesAgo', { n: absMin });
   const absHr = Math.round(absMin / 60);
-  if (absHr < 24) return `${diffMs < 0 ? 'in ' : ''}${absHr} hour${absHr === 1 ? '' : 's'}${diffMs >= 0 ? ' ago' : ''}`;
+  if (absHr < 24) return t('common.hoursAgo', { n: absHr });
   const absDay = Math.round(absHr / 24);
-  return `${diffMs < 0 ? 'in ' : ''}${absDay} day${absDay === 1 ? '' : 's'}${diffMs >= 0 ? ' ago' : ''}`;
+  return t('common.daysAgo', { n: absDay });
 }
 
 function OrbitSection({
@@ -1943,6 +1955,7 @@ function OrbitSection({
    *  parent dialog can persist any unsaved Orbit edits and close itself. */
   onLeaveForOrbitProject: (runConfig: AppConfig) => void;
 }) {
+  const { t } = useI18n();
   const orbit = cfg.orbit ?? DEFAULT_ORBIT;
   const [status, setStatus] = useState<OrbitStatusResponse | null>(null);
   const [running, setRunning] = useState(false);
@@ -2049,7 +2062,7 @@ function OrbitSection({
         if (!isMountedRef.current) return;
         setNotice({
           kind: 'error',
-          message: 'Could not run Orbit. Make sure the local daemon is running and connectors are configured.',
+          message: t('settings.orbit.runError'),
         });
       } finally {
         if (!isMountedRef.current) return;
@@ -2062,7 +2075,7 @@ function OrbitSection({
   const lastRun = status?.lastRun ?? null;
   const nextRunLabel = status?.nextRunAt ? new Date(status.nextRunAt).toLocaleString() : null;
   const lastRunAbs = lastRun ? new Date(lastRun.completedAt).toLocaleString() : null;
-  const lastRunRel = formatRelative(lastRun?.completedAt);
+  const lastRunRel = formatRelative(lastRun?.completedAt, t);
   const liveArtifactHref = lastRun?.artifactId && lastRun?.artifactProjectId
     ? `/api/live-artifacts/${encodeURIComponent(lastRun.artifactId)}/preview?projectId=${encodeURIComponent(lastRun.artifactProjectId)}`
     : null;
@@ -2099,7 +2112,9 @@ function OrbitSection({
   const meterFailed = lastRun ? segPct(lastRun.connectorsFailed) : 0;
 
   const automationState = orbit.enabled ? 'active' : 'off';
-  const triggerLabel = lastRun?.trigger === 'manual' ? 'Manual' : 'Scheduled';
+  const triggerLabel = lastRun?.trigger === 'manual'
+    ? t('settings.orbit.triggerManual')
+    : t('settings.orbit.triggerScheduled');
 
   return (
     <section className="settings-section orbit-section">
@@ -2109,37 +2124,42 @@ function OrbitSection({
           <Icon name="refresh" size={20} />
         </div>
         <div className="orbit-hero-copy">
-          <span className="orbit-hero-eyebrow">Automation</span>
-          <h3 className="orbit-hero-title">Orbit</h3>
+          <span className="orbit-hero-eyebrow">{t('settings.orbit.eyebrow')}</span>
+          <h3 className="orbit-hero-title">{t('settings.orbit.title')}</h3>
           <p className="orbit-hero-lede">
-            Collect connector activity on a schedule and publish the result as a
-            refreshable <strong>live artifact</strong>.
+            {t('settings.orbit.lede')}
           </p>
         </div>
         <div className="orbit-hero-actions">
           <span
             className={`orbit-state-pill orbit-state-${automationState}`}
-            title={orbit.enabled ? 'Scheduled daily runs are on' : 'Scheduled daily runs are off'}
+            title={
+              orbit.enabled
+                ? t('settings.orbit.statusOnTitle')
+                : t('settings.orbit.statusOffTitle')
+            }
           >
             <span className="orbit-state-dot" aria-hidden="true" />
-            {orbit.enabled ? 'Active' : 'Off'}
+            {orbit.enabled
+              ? t('settings.orbit.statusActive')
+              : t('settings.orbit.statusOff')}
           </span>
           <button
             type="button"
             className={'orbit-run-cta' + (isBusy ? ' is-busy' : '')}
             onClick={() => void triggerNow()}
             disabled={isBusy}
-            title="Start an Orbit run and open the live conversation"
+            title={t('settings.orbit.runTitle')}
           >
             {isBusy ? (
               <>
                 <Icon name="spinner" size={14} className="icon-spin" />
-                <span>Running…</span>
+                <span>{t('settings.orbit.running')}</span>
               </>
             ) : (
               <>
                 <Icon name="play" size={14} />
-                <span>Run &amp; open</span>
+                <span>{t('settings.orbit.runOpen')}</span>
               </>
             )}
           </button>
@@ -2159,9 +2179,9 @@ function OrbitSection({
       >
         <div className="orbit-automation-row orbit-automation-switch-row">
           <div className="orbit-automation-label">
-            <span className="orbit-automation-title">Daily summary</span>
+            <span className="orbit-automation-title">{t('settings.orbit.dailySummaryTitle')}</span>
             <span className="orbit-automation-sub">
-              Runs once per day at the scheduled local time.
+              {t('settings.orbit.dailySummarySub')}
             </span>
           </div>
           <button
@@ -2174,7 +2194,9 @@ function OrbitSection({
             <span className="orbit-switch-track" aria-hidden="true">
               <span className="orbit-switch-thumb" />
             </span>
-            <span className="orbit-switch-text">{orbit.enabled ? 'On' : 'Off'}</span>
+            <span className="orbit-switch-text">
+              {orbit.enabled ? t('settings.orbit.on') : t('settings.orbit.off')}
+            </span>
           </button>
         </div>
 
@@ -2182,9 +2204,9 @@ function OrbitSection({
 
         <div className="orbit-automation-row orbit-automation-schedule-row">
           <div className="orbit-automation-label">
-            <span className="orbit-automation-title">Run time</span>
+            <span className="orbit-automation-title">{t('settings.orbit.runTimeTitle')}</span>
             <span className="orbit-automation-sub">
-              Default 08:00. Save to apply to the daemon schedule.
+              {t('settings.orbit.runTimeSub')}
             </span>
           </div>
           <div className="orbit-automation-schedule-controls">
@@ -2193,25 +2215,25 @@ function OrbitSection({
               className="orbit-time-input"
               value={orbit.time}
               onChange={(e) => updateOrbit({ time: e.target.value || DEFAULT_ORBIT.time })}
-              aria-label="Daily Orbit run time"
+              aria-label={t('settings.orbit.runTimeAria')}
             />
             <div className="orbit-next-run" aria-live="polite">
               {orbit.enabled ? (
                 nextRunLabel ? (
                   <>
-                    <span className="orbit-next-run-label">Next run</span>
+                    <span className="orbit-next-run-label">{t('settings.orbit.nextRun')}</span>
                     <span className="orbit-next-run-value">{nextRunLabel}</span>
                   </>
                 ) : (
                   <>
-                    <span className="orbit-next-run-label">Next run</span>
-                    <span className="orbit-next-run-value muted">Scheduled after Save</span>
+                    <span className="orbit-next-run-label">{t('settings.orbit.nextRun')}</span>
+                    <span className="orbit-next-run-value muted">{t('settings.orbit.nextRunScheduledAfterSave')}</span>
                   </>
                 )
               ) : (
                 <>
-                  <span className="orbit-next-run-label">Schedule</span>
-                  <span className="orbit-next-run-value muted">Paused — manual runs only</span>
+                  <span className="orbit-next-run-label">{t('settings.orbit.schedule')}</span>
+                  <span className="orbit-next-run-value muted">{t('settings.orbit.pausedManualOnly')}</span>
                 </>
               )}
             </div>
@@ -2235,7 +2257,7 @@ function OrbitSection({
           <div className="orbit-automation-label">
             {/* Title aligns with the other automation rows ("Daily summary",
                 "Run time") — a single short label. */}
-            <span className="orbit-automation-title">Prompt template</span>
+            <span className="orbit-automation-title">{t('settings.orbit.templateTitle')}</span>
             {orbitTemplates &&
             effectiveTemplateSkillId &&
             !orbitTemplates.some((s) => s.id === effectiveTemplateSkillId) ? (
@@ -2251,11 +2273,10 @@ function OrbitSection({
               >
                 <Icon name="history" size={11} />
                 <span>
-                  Template <strong>{effectiveTemplateSkillId}</strong> isn't
-                  installed.{' '}
+                  {t('settings.orbit.templateMissing', { id: effectiveTemplateSkillId })}{' '}
                   {orbitTemplates.length === 0
-                    ? 'Install an Orbit skill to steer the prompt.'
-                    : 'Pick another template from the dropdown.'}
+                    ? t('settings.orbit.templateMissingInstall')
+                    : t('settings.orbit.templateMissingPickAnother')}
                 </span>
                 {DEFAULT_ORBIT.templateSkillId &&
                 effectiveTemplateSkillId !== DEFAULT_ORBIT.templateSkillId ? (
@@ -2265,18 +2286,17 @@ function OrbitSection({
                     onClick={() =>
                       updateOrbit({ templateSkillId: DEFAULT_ORBIT.templateSkillId })
                     }
-                    title={`Reset to ${DEFAULT_ORBIT.templateSkillId}`}
+                    title={t('settings.orbit.templateResetTitle', {
+                      id: DEFAULT_ORBIT.templateSkillId,
+                    })}
                   >
-                    Reset
+                    {t('settings.orbit.templateReset')}
                   </button>
                 ) : null}
               </span>
             ) : (
               <span className="orbit-automation-sub">
-                Steer Orbit with a skill — the selected template's example
-                prompt is injected into every Orbit run, triggering the
-                matching agent skill so summaries follow that template's
-                shape.
+                {t('settings.orbit.templateHelp')}
               </span>
             )}
           </div>
@@ -2286,7 +2306,7 @@ function OrbitSection({
                 <select
                   id="orbit-template-select"
                   className="orbit-template-select-input"
-                  aria-label="Orbit prompt template"
+                  aria-label={t('settings.orbit.templateAria')}
                   value={effectiveTemplateSkillId}
                   disabled={orbitTemplates === null}
                   onChange={(e) => {
@@ -2304,7 +2324,7 @@ function OrbitSection({
                       only real Orbit skill templates, so there is no
                       "no template" / "use built-in" option to pick. */}
                   {orbitTemplates === null ? (
-                    <option value="">Loading templates…</option>
+                    <option value="">{t('settings.orbit.templatesLoading')}</option>
                   ) : null}
                   {/* If the saved id no longer exists in the registry,
                       surface it as a hidden placeholder so the controlled
@@ -2316,11 +2336,13 @@ function OrbitSection({
                   effectiveTemplateSkillId &&
                   !orbitTemplates.some((s) => s.id === effectiveTemplateSkillId) ? (
                     <option value={effectiveTemplateSkillId} hidden>
-                      {effectiveTemplateSkillId} (missing)
+                      {t('settings.orbit.templateMissingOption', {
+                        id: effectiveTemplateSkillId,
+                      })}
                     </option>
                   ) : null}
                   {orbitTemplates && orbitTemplates.length > 0 ? (
-                    <optgroup label="Orbit skill templates">
+                    <optgroup label={t('settings.orbit.templatesOptgroup')}>
                       {orbitTemplates.map((s) => (
                         <option
                           key={s.id}
@@ -2359,7 +2381,7 @@ function OrbitSection({
             <div className="orbit-receipt-head-left">
               <span className="orbit-receipt-eyebrow">
                 <Icon name="history" size={12} />
-                Last run
+                {t('settings.orbit.lastRun')}
               </span>
               <span
                 className="orbit-receipt-timestamp"
@@ -2388,7 +2410,12 @@ function OrbitSection({
           <div
             className="orbit-meter"
             role="img"
-            aria-label={`${lastRun.connectorsSucceeded} succeeded, ${lastRun.connectorsSkipped} skipped, ${lastRun.connectorsFailed} failed out of ${lastRun.connectorsChecked} checked`}
+            aria-label={t('settings.orbit.meterAria', {
+              succeeded: lastRun.connectorsSucceeded,
+              skipped: lastRun.connectorsSkipped,
+              failed: lastRun.connectorsFailed,
+              checked: lastRun.connectorsChecked,
+            })}
           >
             {meterSucceeded > 0 ? (
               <span
@@ -2414,19 +2441,19 @@ function OrbitSection({
           </div>
           <dl className="orbit-counts">
             <div className="orbit-count">
-              <dt>Checked</dt>
+              <dt>{t('settings.orbit.countChecked')}</dt>
               <dd>{lastRun.connectorsChecked}</dd>
             </div>
             <div className="orbit-count is-succeeded">
-              <dt>Succeeded</dt>
+              <dt>{t('settings.orbit.countSucceeded')}</dt>
               <dd>{lastRun.connectorsSucceeded}</dd>
             </div>
             <div className="orbit-count is-skipped">
-              <dt>Skipped</dt>
+              <dt>{t('settings.orbit.countSkipped')}</dt>
               <dd>{lastRun.connectorsSkipped}</dd>
             </div>
             <div className="orbit-count is-failed">
-              <dt>Failed</dt>
+              <dt>{t('settings.orbit.countFailed')}</dt>
               <dd>{lastRun.connectorsFailed}</dd>
             </div>
           </dl>
@@ -2435,7 +2462,7 @@ function OrbitSection({
         <div
           className={`orbit-firstrun${isBusy ? ' is-busy' : ''}`}
           role="region"
-          aria-label="Orbit has not run yet"
+          aria-label={t('settings.orbit.emptyAria')}
         >
           {/* Decorative orbit rings — pure CSS, ties the empty state to the
               hero's accent gradient mark without introducing a new icon. */}
@@ -2445,14 +2472,16 @@ function OrbitSection({
             <span className="orbit-firstrun-planet" />
           </div>
           <div className="orbit-firstrun-copy">
-            <span className="orbit-firstrun-eyebrow">Awaiting first run</span>
+            <span className="orbit-firstrun-eyebrow">
+              {t('settings.orbit.emptyEyebrow')}
+            </span>
             <h4 className="orbit-firstrun-title">
-              Your daily summary will land here
+              {t('settings.orbit.emptyTitle')}
             </h4>
             <p className="orbit-firstrun-body">
               {orbit.enabled
-                ? <>Orbit is scheduled — the next automatic run will publish a live artifact and a breakdown of connector activity in this card.</>
-                : <>Use <strong>Run &amp; open</strong> in the header to trigger your first run; a connector breakdown and a refreshable live artifact will appear here.</>}
+                ? <>{t('settings.orbit.emptyBodyScheduled')}</>
+                : <>{t('settings.orbit.emptyBodyManual')}</>}
             </p>
             {/* The empty state used to host its own primary CTA, but the
                 hero already exposes "Run & open" — we removed the duplicate
@@ -2480,15 +2509,17 @@ function OrbitSection({
           </div>
           <div className="orbit-artifact-strip-copy">
             <span className="orbit-artifact-strip-kicker">
-              {liveArtifactHref ? 'Live artifact' : 'Legacy summary'}
+              {liveArtifactHref
+                ? t('settings.orbit.artifactKickerLive')
+                : t('settings.orbit.artifactKickerLegacy')}
             </span>
             <span className="orbit-artifact-strip-title">
-              Daily Orbit Activity Summary
+              {t('settings.orbit.artifactTitle')}
             </span>
             <span className="orbit-artifact-strip-meta">
               {liveArtifactHref
-                ? 'Refreshable HTML artifact generated from connector activity.'
-                : 'Generated before live artifacts were enabled — run Orbit again to publish one.'}
+                ? t('settings.orbit.artifactMetaLive')
+                : t('settings.orbit.artifactMetaLegacy')}
             </span>
           </div>
           <div className="orbit-artifact-strip-actions">
@@ -2497,17 +2528,17 @@ function OrbitSection({
                 type="button"
                 className="orbit-artifact-ghost"
                 onClick={() => void copyMarkdown()}
-                title="Copy markdown summary to clipboard"
+                title={t('settings.orbit.copyMarkdownTitle')}
               >
                 {copied ? (
                   <>
                     <Icon name="check" size={13} />
-                    <span>Copied</span>
+                    <span>{t('settings.orbit.copied')}</span>
                   </>
                 ) : (
                   <>
                     <Icon name="copy" size={13} />
-                    <span>Copy</span>
+                    <span>{t('settings.orbit.copy')}</span>
                   </>
                 )}
               </button>
@@ -2519,7 +2550,7 @@ function OrbitSection({
                 target="_blank"
                 rel="noreferrer"
               >
-                <span>Open artifact</span>
+                <span>{t('settings.orbit.openArtifact')}</span>
                 <Icon name="external-link" size={13} />
               </a>
             ) : null}
@@ -2528,7 +2559,7 @@ function OrbitSection({
             <details className="orbit-artifact-peek">
               <summary>
                 <Icon name="chevron-right" size={12} />
-                <span>Source markdown</span>
+                <span>{t('settings.orbit.sourceMarkdown')}</span>
               </summary>
               <pre>{lastRun.markdown}</pre>
             </details>
