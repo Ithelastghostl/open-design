@@ -403,8 +403,7 @@ export const playwrightUiScenarios: UiScenario[] = [
     },
     prompt: 'Open a generated Python file and inspect its source inline',
     notes: [
-      'Candidate follow-up to the Python preview gap in the file viewer.',
-      'Likely automation shape: seed a .py file through the project files API, open it, and assert the viewer renders code text.',
+      'Seeds a deterministic .py file through the project files API, opens it from the file list, and asserts the source viewer renders readable code text.',
     ],
   },
 ];

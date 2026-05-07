@@ -6,7 +6,9 @@ import path from 'node:path';
 
 const STORAGE_KEY = 'open-design:config';
 const FAKE_CODEX_DIR = path.join(tmpdir(), `open-design-playwright-fake-codex-${process.pid}`);
-const FAKE_CODEX_BIN = path.join(FAKE_CODEX_DIR, 'codex-e2e.js');
+const FAKE_CODEX_SCRIPT = path.join(FAKE_CODEX_DIR, 'codex-e2e.js');
+const FAKE_CODEX_BIN =
+  process.platform === 'win32' ? path.join(FAKE_CODEX_DIR, 'codex-e2e.cmd') : FAKE_CODEX_SCRIPT;
 const GENERATED_FILE = 'real-daemon-smoke.html';
 const GENERATED_HEADING = 'Real Daemon Smoke';
 const CHUNKED_FILE = 'chunked-daemon-smoke.html';
@@ -16,7 +18,7 @@ const FOLLOW_UP_FILE = 'follow-up-daemon-smoke.html';
 test.beforeAll(async () => {
   await mkdir(FAKE_CODEX_DIR, { recursive: true });
   await writeFile(
-    FAKE_CODEX_BIN,
+    FAKE_CODEX_SCRIPT,
     `#!/usr/bin/env node
 if (process.argv.includes('--version')) {
   process.stdout.write('codex-e2e 0.0.0\\n');
@@ -56,7 +58,11 @@ process.stdin.on('end', () => {
 `,
     'utf8',
   );
-  await chmod(FAKE_CODEX_BIN, 0o755);
+  if (process.platform === 'win32') {
+    await writeFile(FAKE_CODEX_BIN, '@echo off\r\nnode "%~dp0codex-e2e.js" %*\r\n', 'utf8');
+  } else {
+    await chmod(FAKE_CODEX_BIN, 0o755);
+  }
 });
 
 test.beforeEach(async ({ page }) => {

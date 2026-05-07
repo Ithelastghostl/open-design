@@ -69,13 +69,15 @@ jobs:
                 break
               fi
             done < "$RUNNER_TEMP/changed-files.txt"
+          else
+            required=true
           fi
           echo "required=$required" >> "$GITHUB_OUTPUT"
 
   validate:
     name: Validate workspace
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
