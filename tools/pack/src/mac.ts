@@ -27,6 +27,7 @@ import {
   spawnBackgroundProcess,
   stopProcesses,
 } from "@open-design/platform";
+import { resolveProjectRelativePath } from "../../../apps/daemon/src/home-expansion.js";
 
 import type { ToolPackBuildOutput, ToolPackConfig } from "./config.js";
 import { copyBundledResourceTrees, macResources } from "./resources.js";
@@ -281,10 +282,9 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 function resolveSeededAppConfigPaths(config: ToolPackConfig): SeededAppConfigPaths {
-  const sourceDataDir = process.env.OD_DATA_DIR != null && process.env.OD_DATA_DIR.length > 0
-    ? config.workspaceRoot === process.cwd()
-      ? process.env.OD_DATA_DIR
-      : process.env.OD_DATA_DIR
+  const configuredDataDir = process.env.OD_DATA_DIR?.trim();
+  const sourceDataDir = configuredDataDir
+    ? resolveProjectRelativePath(configuredDataDir, config.workspaceRoot)
     : join(config.workspaceRoot, ".od");
   return {
     sourcePath: join(sourceDataDir, "app-config.json"),

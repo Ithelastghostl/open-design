@@ -826,6 +826,38 @@ console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_messag
     );
   });
 
+  it('uses CODEX_BIN overrides when testing agent connections', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'od-conn-test-codex-bin-'));
+    const oldPath = process.env.PATH;
+    try {
+      const bin = path.join(dir, 'codex-next');
+      await fsp.writeFile(
+        bin,
+        `#!/usr/bin/env node\nconsole.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'ok' } }));\n`,
+      );
+      await fsp.chmod(bin, 0o755);
+      process.env.PATH = oldPath ?? '';
+
+      const result = await testAgentConnection({
+        agentId: 'codex',
+        agentCliEnv: {
+          codex: {
+            CODEX_BIN: bin,
+          },
+        },
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        kind: 'success',
+        agentName: 'Codex CLI',
+      });
+    } finally {
+      process.env.PATH = oldPath;
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('reports OpenCode structured errors without treating them as raw output', async () => {
     await withFakeOpenCode(
       `
