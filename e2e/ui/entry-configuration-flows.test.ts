@@ -223,12 +223,15 @@ test('saving a Composio key from Settings unlocks the connectors gate immediatel
   await expect(settingsDialog).toBeVisible();
   await settingsDialog.getByPlaceholder('Paste Composio API key').fill('cmp-secret-1234');
   await settingsDialog.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(settingsDialog).toHaveCount(0);
 
   expect(savedComposioBody).toEqual({ apiKey: 'cmp-secret-1234' });
   await expect(page.getByTestId('connector-gate')).toHaveCount(0);
   await expect(page.getByTestId('connectors-search-input')).toBeEnabled();
   await expect(connectorCard(page, 'github')).toBeVisible();
+  await expect(settingsDialog).toBeVisible();
+  await expect(
+    settingsDialog.getByPlaceholder('Paste a new key to replace the saved one'),
+  ).toBeVisible();
 
   const savedConfig = await page.evaluate((key) => {
     const raw = window.localStorage.getItem(key);
