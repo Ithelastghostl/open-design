@@ -1,5 +1,22 @@
+// @vitest-environment jsdom
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const { saveTemplateMock } = vi.hoisted(() => ({
+  saveTemplateMock: vi.fn(),
+}));
+
+vi.mock('../../src/state/projects', async () => {
+  const actual = await vi.importActual<typeof import('../../src/state/projects')>(
+    '../../src/state/projects',
+  );
+  return {
+    ...actual,
+    saveTemplate: saveTemplateMock,
+  };
+});
 
 import {
   FileViewer,
@@ -188,6 +205,59 @@ describe('FileViewer SVG artifacts', () => {
     expect(markup).not.toContain('<script>');
     expect(markup).not.toContain('<![CDATA[');
     expect(markup).not.toContain('dangerouslySetInnerHTML');
+  });
+
+  it('uses an in-app modal instead of window.prompt() when saving a template', async () => {
+    saveTemplateMock.mockResolvedValueOnce({
+      id: 'tpl_1',
+      name: 'Landing Page',
+      description: null,
+      sourceProjectId: 'project-1',
+      files: [],
+      createdAt: Date.now(),
+    });
+    const promptSpy = vi.spyOn(window, 'prompt');
+    const file = baseFile({
+      name: 'landing-page.html',
+      path: 'landing-page.html',
+      mime: 'text/html',
+      kind: 'html',
+      artifactManifest: {
+        version: 1,
+        kind: 'html',
+        title: 'Landing Page',
+        entry: 'landing-page.html',
+        renderer: 'html',
+        exports: ['html'],
+      },
+    });
+
+    render(
+      <FileViewer
+        projectId="project-1"
+        file={file}
+        liveHtml="<html><body><h1>Hello</h1></body></html>"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /share/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /save as template/i }));
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    const nameInput = screen.getByLabelText(/template name/i) as HTMLInputElement;
+    expect(nameInput.value).toBe('landing-page');
+    fireEvent.change(nameInput, { target: { value: 'Landing Page' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(saveTemplateMock).toHaveBeenCalledWith({
+        name: 'Landing Page',
+        description: undefined,
+        sourceProjectId: 'project-1',
+      }),
+    );
+    expect(promptSpy).not.toHaveBeenCalled();
+    promptSpy.mockRestore();
   });
 });
 
