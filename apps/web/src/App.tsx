@@ -51,6 +51,12 @@ import type {
   SkillSummary,
 } from './types';
 
+export function shouldSyncMediaProvidersOnSave(
+  mediaProviders: AppConfig['mediaProviders'],
+): boolean {
+  return hasAnyConfiguredProvider(mediaProviders);
+}
+
 function normalizeSavedComposioConfig(config: AppConfig['composio']): AppConfig['composio'] {
   const apiKey = config?.apiKey?.trim() ?? '';
   if (apiKey) {
@@ -260,9 +266,11 @@ export function App() {
       onboardingCompleted: true,
     };
     saveConfig(withOnboarding);
-    void syncMediaProvidersToDaemon(withOnboarding.mediaProviders, {
-      force: true,
-    });
+    if (shouldSyncMediaProvidersOnSave(withOnboarding.mediaProviders)) {
+      void syncMediaProvidersToDaemon(withOnboarding.mediaProviders, {
+        force: true,
+      });
+    }
     void syncConfigToDaemon(withOnboarding);
     setConfig(withOnboarding);
     if (closeModal) setSettingsOpen(false);

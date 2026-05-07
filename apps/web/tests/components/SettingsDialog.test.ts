@@ -433,6 +433,38 @@ describe('SettingsDialog Orbit run behavior', () => {
     expect(JSON.parse(calls[1]!.body ?? '{}')).toMatchObject({ force: true });
   });
 
+  it('does not overwrite daemon media credentials when the local media map is empty', async () => {
+    const calls: Array<{ url: string; method: string; body?: string }> = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+      const body = typeof init?.body === 'string' ? init.body : undefined;
+      calls.push({ url, method, body });
+
+      if (url === '/api/app-config') {
+        return new Response(null, { status: 204 });
+      }
+      if (url === '/api/orbit/run') {
+        return new Response(JSON.stringify({ projectId: 'orbit-project', agentRunId: 'run-4' }), { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    await expect(
+      persistConfigAndRunOrbit({
+        ...baseConfig,
+        mediaProviders: {},
+        orbit: {
+          enabled: true,
+          time: '09:30',
+          templateSkillId: 'orbit-template-1',
+        },
+      }),
+    ).resolves.toEqual({ projectId: 'orbit-project', agentRunId: 'run-4' });
+
+    expect(calls.map((call) => call.url)).toEqual(['/api/app-config', '/api/orbit/run']);
+  });
+
   it('does not start a manual Orbit run when saving Composio credentials fails', async () => {
     const calls: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {

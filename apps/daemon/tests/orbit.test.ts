@@ -123,6 +123,35 @@ describe('OrbitService', () => {
     }
   });
 
+  it('does not report the fired schedule time as nextRunAt while a scheduled run is in flight', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 6, 7, 59, 0, 0));
+    const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
+    try {
+      const completion = new Promise<never>(() => {});
+      const service = new OrbitService(dataDir);
+      service.setRunHandler(async () => ({
+        projectId: 'project-1',
+        agentRunId: 'agent-1',
+        completion,
+      }));
+      service.configure({ enabled: true, time: '08:00' });
+      const firstNextRunAt = (await service.status()).nextRunAt;
+      expect(firstNextRunAt).not.toBeNull();
+
+      await vi.advanceTimersByTimeAsync(Date.parse(firstNextRunAt!) - Date.now());
+
+      await expect(service.status()).resolves.toMatchObject({
+        running: true,
+        nextRunAt: null,
+      });
+      service.stop();
+    } finally {
+      vi.useRealTimers();
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it('sets connectorsChecked to the summed connector outcomes', async () => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
     try {

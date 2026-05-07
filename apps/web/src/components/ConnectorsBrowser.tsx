@@ -181,17 +181,9 @@ export function ConnectorsBrowser({
     return () => window.removeEventListener('focus', onFocus);
   }, [reloadConnectorStatuses]);
 
-  // Mask the grid whenever no Composio-backed connector has its auth
-  // configured. We also honor the local config.composio flag so the mask
-  // appears immediately when the key is cleared, before the next list fetch.
-  const anyComposioAuthConfigured = useMemo(
-    () =>
-      connectors.some(
-        (connector) => connector.auth?.provider === 'composio' && connector.auth.configured,
-      ),
-    [connectors],
-  );
-  const needsComposioKey = !composioConfigured && !anyComposioAuthConfigured;
+  // The local Composio API-key state is authoritative for masking. Cached
+  // connector auth can be stale immediately after the user clears the key.
+  const needsComposioKey = !composioConfigured;
 
   // Filter and rank connectors by user-visible fields. Exact/prefix matches
   // on connector name/provider are strongest; broad description matches stay

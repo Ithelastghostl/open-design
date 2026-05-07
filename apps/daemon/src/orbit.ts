@@ -373,6 +373,8 @@ export class OrbitService {
     const next = nextDailyRunAt(this.config.time);
     this.nextRunAtValue = next;
     this.timer = setTimeout(() => {
+      this.timer = null;
+      this.nextRunAtValue = null;
       void this.start('scheduled').catch((error) => {
         console.warn('[orbit] Scheduled run failed:', error);
         if (!this.inflight) this.reschedule();

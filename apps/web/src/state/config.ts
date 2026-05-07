@@ -217,10 +217,18 @@ function normalizeNotifications(
 }
 
 function normalizeOrbit(input: Partial<OrbitConfig> | undefined): OrbitConfig {
-  const time = typeof input?.time === 'string' && /^\d{2}:\d{2}$/.test(input.time)
+  const time = typeof input?.time === 'string' && isValidOrbitTime(input.time)
     ? input.time
     : DEFAULT_ORBIT.time;
   return { ...DEFAULT_ORBIT, ...(input ?? {}), time };
+}
+
+function isValidOrbitTime(time: string): boolean {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return false;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
 }
 
 function inferApiProtocol(model: string, baseUrl: string): ApiProtocol {

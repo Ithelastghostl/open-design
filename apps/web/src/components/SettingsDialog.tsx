@@ -12,6 +12,7 @@ import {
   DEFAULT_NOTIFICATIONS,
   DEFAULT_ORBIT,
   KNOWN_PROVIDERS,
+  hasAnyConfiguredProvider,
   syncComposioConfigToDaemon,
   syncConfigToDaemon,
   syncMediaProvidersToDaemon,
@@ -1890,7 +1891,9 @@ export async function persistConfigAndRunOrbit(
     const composioSaved = await syncComposioConfigToDaemon(config.composio);
     if (!composioSaved) throw new Error('Composio config save failed');
   }
-  await syncMediaProvidersToDaemon(config.mediaProviders, { force: true, throwOnError: true });
+  if (hasAnyConfiguredProvider(config.mediaProviders)) {
+    await syncMediaProvidersToDaemon(config.mediaProviders, { force: true, throwOnError: true });
+  }
   await syncConfigToDaemon(config, { throwOnError: true });
   const response = await fetch('/api/orbit/run', { method: 'POST' });
   if (!response.ok) throw new Error('Orbit run failed');

@@ -259,6 +259,19 @@ describe('loadConfig', () => {
     expect(loadConfig().accentColor).toBe(DEFAULT_CONFIG.accentColor);
   });
 
+  it('falls back to the default Orbit time for out-of-range saved times', () => {
+    const savedConfig: Partial<AppConfig> = {
+      orbit: {
+        enabled: true,
+        time: '99:99',
+        templateSkillId: 'orbit-general',
+      },
+    };
+    store.set('open-design:config', JSON.stringify(savedConfig));
+
+    expect(loadConfig().orbit?.time).toBe(DEFAULT_CONFIG.orbit?.time);
+  });
+
   it('returns defaults for malformed localStorage JSON', () => {
     store.set('open-design:config', '{broken-json');
 
