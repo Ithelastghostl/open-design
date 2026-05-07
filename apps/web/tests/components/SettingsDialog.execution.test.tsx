@@ -1323,7 +1323,7 @@ describe('SettingsDialog pets interactions', () => {
     if (clipboardDescriptor) {
       Object.defineProperty(window.navigator, 'clipboard', clipboardDescriptor);
     } else {
-      delete (window.navigator as Navigator & { clipboard?: Clipboard }).clipboard;
+      Reflect.deleteProperty(window.navigator, 'clipboard');
     }
     cleanup();
   });
