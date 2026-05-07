@@ -343,7 +343,7 @@ export const playwrightUiScenarios: UiScenario[] = [
     title: 'Deck preview previous and next controls move in the correct direction',
     kind: 'deck',
     flow: 'deck-pagination-next-prev-correctness',
-    automated: false,
+    automated: true,
     description:
       'Should verify that deck preview pagination moves to the actual previous and next slide instead of routing both actions to the same page.',
     create: {
@@ -351,13 +351,16 @@ export const playwrightUiScenarios: UiScenario[] = [
       tab: 'deck',
     },
     prompt: 'Review pagination behavior in a multi-slide deck preview',
+    notes: [
+      'Seeds deterministic deck HTML through the project files API and verifies previous/next controls in Playwright.',
+    ],
   },
   {
     id: 'deck-pagination-per-file-isolated',
     title: 'Each HTML deck tab preserves its own pagination state',
     kind: 'deck',
     flow: 'deck-pagination-per-file-isolated',
-    automated: false,
+    automated: true,
     description:
       'Should verify that switching between multiple deck HTML files does not leak page position across tabs or reset both files to page 1.',
     create: {
@@ -365,13 +368,16 @@ export const playwrightUiScenarios: UiScenario[] = [
       tab: 'deck',
     },
     prompt: 'Keep pagination state isolated per generated deck file',
+    notes: [
+      'Seeds two deterministic deck HTML files and verifies each open tab preserves its own active slide.',
+    ],
   },
   {
     id: 'uploaded-image-renders-in-preview',
     title: 'Uploaded reference images render correctly in generated deck preview',
     kind: 'workspace',
     flow: 'uploaded-image-renders-in-preview',
-    automated: false,
+    automated: true,
     description:
       'Should verify that uploaded images resolve to loadable src paths inside generated HTML instead of rendering as broken images.',
     create: {
@@ -379,13 +385,16 @@ export const playwrightUiScenarios: UiScenario[] = [
       tab: 'prototype',
     },
     prompt: 'Use uploaded brand images inside a generated deck preview',
+    notes: [
+      'Seeds an image plus relative HTML reference and asserts the preview iframe loads the image.',
+    ],
   },
   {
     id: 'python-source-preview',
     title: 'Python files should open with a readable inline source preview',
     kind: 'workspace',
     flow: 'python-source-preview',
-    automated: false,
+    automated: true,
     description:
       'Should verify that opening a .py file in the main workspace renders a readable source/code preview instead of an unsupported blank state.',
     create: {
