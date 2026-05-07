@@ -92,6 +92,15 @@ interface Props {
    * "Save key" button rather than the autosave channel.
    */
   onPersistComposioKey: (composio: AppConfig['composio']) => Promise<void> | void;
+  /**
+   * True while the daemon-backed Composio config is still hydrating on
+   * first paint after a dev-server / app restart. The Connectors section
+   * renders a skeleton over the input + buttons during this window so
+   * the user does not mistake the temporarily empty input for "no key
+   * saved" and so accidental Save/Clear clicks cannot overwrite the
+   * saved state with `''` before the daemon's response lands.
+   */
+  composioConfigLoading?: boolean;
   onClose: () => void;
   onRefreshAgents: (
     options?: AgentRefreshOptions,
@@ -517,6 +526,7 @@ export function SettingsDialog({
   initialSection = 'execution',
   onPersist,
   onPersistComposioKey,
+  composioConfigLoading = false,
   onClose,
   onRefreshAgents,
 }: Props) {
@@ -1723,6 +1733,7 @@ export function SettingsDialog({
             <ConnectorSection
               cfg={cfg}
               setCfg={setCfg}
+              composioConfigLoading={composioConfigLoading}
               onPersistComposioKey={onPersistComposioKey}
             />
           ) : null}
@@ -1919,10 +1930,17 @@ export function deriveComposioCredentialState(
 function ConnectorSection({
   cfg,
   setCfg,
+  composioConfigLoading = false,
   onPersistComposioKey,
 }: {
   cfg: AppConfig;
   setCfg: Dispatch<SetStateAction<AppConfig>>;
+  /** True while the daemon-backed Composio config is still hydrating on
+   *  first paint. The credentials surface renders a skeleton over the
+   *  input + buttons so the user does not mistake the temporarily empty
+   *  input for "no saved key", and so accidental Save/Clear clicks
+   *  cannot overwrite the saved state with `''` before hydration lands. */
+  composioConfigLoading?: boolean;
   /** Persist the freshly typed Composio API key to the daemon. Returns
    *  once both localStorage and the daemon have caught up so the
    *  section-local Save button can flip from "Saving…" back to idle. */
@@ -1952,6 +1970,7 @@ function ConnectorSection({
   const handleSaveKey = async () => {
     if (keySaveStatus === 'saving') return;
     if (!hasPendingEdit) return;
+    if (composioConfigLoading) return;
     const pendingKey = composio.apiKey ?? '';
     setKeySaveStatus('saving');
     try {
@@ -1972,6 +1991,87 @@ function ConnectorSection({
     }
   };
 
+  // Action gating during hydration. Both Save and Clear are dangerous
+  // before the daemon's response lands: Save would push whatever the
+  // user typed (or didn't type) over the saved key, and Clear would
+  // unconditionally wipe it. The skeleton state below makes this
+  // visually obvious; the disabled flags here are the safety net.
+  const actionsLocked = composioConfigLoading || keySaveStatus === 'saving';
+  const saveDisabled = actionsLocked || !hasPendingEdit;
+  const clearDisabled = actionsLocked || !apiKeyConfigured;
+
+  // Two-stage destructive confirmation for "Clear". Clearing the saved
+  // Composio API key cascades into disconnecting every connector that
+  // depends on it, which is irreversible from the UI's standpoint —
+  // accounts, OAuth grants, and tool access all unwind. To stop that
+  // from happening on a stray click we gate the existing wipe behind
+  //   1. an inline warning panel (must click "Continue"), then
+  //   2. a final destructive confirmation panel with a brief arming
+  //      window so the destructive button cannot be hit by reflex
+  //      double-click, then
+  //   3. the original clear behavior fires.
+  // The panel collapses on Cancel, when the saved key disappears for
+  // any other reason, or when the user navigates away from the section.
+  const [clearStage, setClearStage] = useState<'idle' | 'confirm' | 'final'>('idle');
+  const [clearArmed, setClearArmed] = useState(false);
+  const finalConfirmButtonRef = useRef<HTMLButtonElement | null>(null);
+  // Reset the flow if the underlying state stops being clearable
+  // (e.g. the daemon reloaded and there's nothing saved anymore, or
+  // hydration started). This avoids a stale confirmation panel sitting
+  // open over a key that no longer exists.
+  useEffect(() => {
+    if (!apiKeyConfigured || composioConfigLoading) {
+      setClearStage('idle');
+      setClearArmed(false);
+    }
+  }, [apiKeyConfigured, composioConfigLoading]);
+  // Arm the destructive button after a short delay once the user
+  // reaches the final stage. Until then the button is visually hot
+  // but inert — this is the "hold on a sec" moment that keeps a
+  // reflex Enter / double-click from blowing through both stages.
+  useEffect(() => {
+    if (clearStage !== 'final') {
+      setClearArmed(false);
+      return;
+    }
+    setClearArmed(false);
+    const timer = window.setTimeout(() => setClearArmed(true), 700);
+    // Pull focus to the final confirm button so keyboard users can
+    // see the arming animation finish and choose deliberately rather
+    // than tabbing through stale focus state.
+    const focusTimer = window.setTimeout(() => {
+      finalConfirmButtonRef.current?.focus({ preventScroll: true });
+    }, 720);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(focusTimer);
+    };
+  }, [clearStage]);
+  const handleClearRequest = () => {
+    if (clearDisabled) return;
+    setClearStage('confirm');
+  };
+  const handleClearAbort = () => {
+    setClearStage('idle');
+    setClearArmed(false);
+  };
+  const handleClearContinue = () => {
+    setClearStage('final');
+  };
+  const handleClearCommit = () => {
+    if (!clearArmed) return;
+    // Original clear behavior — preserved verbatim so the daemon side
+    // contract (wipe key, mark unconfigured, drop tail) does not change.
+    updateComposio({ apiKey: '', apiKeyConfigured: false, apiKeyTail: '' });
+    void onPersistComposioKey({
+      apiKey: '',
+      apiKeyConfigured: false,
+      apiKeyTail: '',
+    });
+    setClearStage('idle');
+    setClearArmed(false);
+  };
+
   return (
     <section className="settings-section settings-section-connectors">
       <div className="section-head">
@@ -1981,11 +2081,22 @@ function ConnectorSection({
         </div>
       </div>
 
-      <label className="field settings-section-connectors-credentials">
+      <label
+        className={`field settings-section-connectors-credentials${composioConfigLoading ? ' is-loading' : ''}`}
+        aria-busy={composioConfigLoading || undefined}
+      >
         <span className="field-label-row">
           <span className="field-label-group">
             <span className="field-label">{t('settings.connectorsComposioApiKey')}</span>
-            {hasSavedKey ? (
+            {composioConfigLoading ? (
+              // Skeleton chip stands in for the "Saved · ••••XXXX" badge
+              // while we wait for the daemon. Same footprint as the real
+              // chip so the row geometry doesn't jump on resolve.
+              <span
+                className="field-status-badge field-status-badge-skeleton"
+                aria-hidden="true"
+              />
+            ) : hasSavedKey ? (
               <span
                 className="field-status-badge"
                 title={t('settings.connectorsSavedTitle')}
@@ -2007,32 +2118,54 @@ function ConnectorSection({
           </a>
         </span>
         <div className="field-row">
-          <input
-            type="password"
-            value={composio.apiKey ?? ''}
-            placeholder={
-              hasSavedKey
-                ? t('settings.connectorsReplaceKeyPlaceholder')
-                : t('settings.connectorsApiKeyPlaceholder')
-            }
-            onChange={(e) => updateComposio({ apiKey: e.target.value })}
-            onKeyDown={(e) => {
-              // Enter from the password field commits the key — the
-              // most common save gesture for credential fields, and
-              // it removes the need to mouse over to the button.
-              if (e.key === 'Enter' && hasPendingEdit && keySaveStatus !== 'saving') {
-                e.preventDefault();
-                void handleSaveKey();
+          {/* Wrap the password input so the shimmer overlay can sit on
+              top of it without affecting layout. The input itself stays
+              mounted (rather than swapped for a placeholder div) so the
+              browser keeps any in-progress autofill, focus, and
+              accessibility tree intact when hydration completes. */}
+          <span className="field-input-skeleton-wrap">
+            <input
+              type="password"
+              value={composio.apiKey ?? ''}
+              placeholder={
+                composioConfigLoading
+                  ? t('settings.connectorsLoadingSavedKey')
+                  : hasSavedKey
+                    ? t('settings.connectorsReplaceKeyPlaceholder')
+                    : t('settings.connectorsApiKeyPlaceholder')
               }
-            }}
-            aria-describedby="composio-api-key-help"
-          />
+              onChange={(e) => updateComposio({ apiKey: e.target.value })}
+              onKeyDown={(e) => {
+                // Enter from the password field commits the key — the
+                // most common save gesture for credential fields, and
+                // it removes the need to mouse over to the button.
+                if (
+                  e.key === 'Enter'
+                  && hasPendingEdit
+                  && keySaveStatus !== 'saving'
+                  && !composioConfigLoading
+                ) {
+                  e.preventDefault();
+                  void handleSaveKey();
+                }
+              }}
+              disabled={composioConfigLoading}
+              aria-describedby="composio-api-key-help"
+            />
+            {composioConfigLoading ? (
+              <span className="field-input-skeleton-shimmer" aria-hidden="true" />
+            ) : null}
+          </span>
           <button
             type="button"
             className={'primary settings-connectors-save' + (keySaveStatus === 'saving' ? ' is-busy' : '')}
-            disabled={!hasPendingEdit || keySaveStatus === 'saving'}
+            disabled={saveDisabled}
             onClick={() => void handleSaveKey()}
-            title={t('settings.connectorsSaveKeyTitle')}
+            title={
+              composioConfigLoading
+                ? t('settings.connectorsLoadingSavedKey')
+                : t('settings.connectorsSaveKeyTitle')
+            }
           >
             {keySaveStatus === 'saving' ? (
               <>
@@ -2045,28 +2178,113 @@ function ConnectorSection({
           </button>
           <button
             type="button"
-            className="ghost"
-            disabled={!apiKeyConfigured || keySaveStatus === 'saving'}
-            onClick={() => {
-              // "Clear" wipes the local + saved state immediately and
-              // pushes the cleared payload to the daemon so the next
-              // catalog refresh masks again. This is the one Composio
-              // edit that we DO want to persist instantly: there is
-              // no half-cleared state, and the user expects the
-              // unlock to reverse on click.
-              updateComposio({ apiKey: '', apiKeyConfigured: false, apiKeyTail: '' });
-              void onPersistComposioKey({
-                apiKey: '',
-                apiKeyConfigured: false,
-                apiKeyTail: '',
-              });
-            }}
+            className={
+              'ghost settings-connectors-clear'
+              + (clearStage !== 'idle' ? ' is-arming' : '')
+            }
+            disabled={clearDisabled}
+            title={
+              composioConfigLoading
+                ? t('settings.connectorsLoadingSavedKey')
+                : undefined
+            }
+            aria-expanded={clearStage !== 'idle'}
+            aria-controls="composio-clear-confirm"
+            onClick={handleClearRequest}
           >
             {t('settings.connectorsClear')}
           </button>
         </div>
-        <span id="composio-api-key-help" className="hint">
-          {keySaveStatus === 'error'
+        {/* Two-stage destructive confirmation panel. Lives inside the
+            credentials field so it visually grows out of the row that
+            owns the action, instead of floating disconnected at the
+            bottom of the section. The panel is destructive-styled
+            (red border + soft red bg) and uses an alertdialog role so
+            screen readers treat it as a modal blocker for the field. */}
+        {clearStage !== 'idle' ? (
+          <div
+            id="composio-clear-confirm"
+            className={
+              'settings-connectors-clear-confirm is-' + clearStage
+              + (clearStage === 'final' && clearArmed ? ' is-armed' : '')
+            }
+            role="alertdialog"
+            aria-modal="false"
+            aria-labelledby="composio-clear-confirm-title"
+            aria-describedby="composio-clear-confirm-body"
+          >
+            <div className="settings-connectors-clear-confirm-icon" aria-hidden="true">
+              <span className="settings-connectors-clear-confirm-glyph">!</span>
+            </div>
+            <div className="settings-connectors-clear-confirm-copy">
+              <strong id="composio-clear-confirm-title">
+                {clearStage === 'final'
+                  ? t('settings.connectorsClearFinalTitle')
+                  : t('settings.connectorsClearConfirmTitle')}
+              </strong>
+              <span id="composio-clear-confirm-body">
+                {clearStage === 'final'
+                  ? t('settings.connectorsClearFinalBody')
+                  : t('settings.connectorsClearConfirmBody')}
+              </span>
+            </div>
+            <div className="settings-connectors-clear-confirm-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={handleClearAbort}
+              >
+                {t('settings.connectorsClearCancel')}
+              </button>
+              {clearStage === 'confirm' ? (
+                <button
+                  type="button"
+                  className="settings-connectors-clear-step"
+                  onClick={handleClearContinue}
+                >
+                  {t('settings.connectorsClearConfirmContinue')}
+                  <Icon name="chevron-right" size={12} />
+                </button>
+              ) : (
+                <button
+                  ref={finalConfirmButtonRef}
+                  type="button"
+                  className={
+                    'settings-connectors-clear-commit'
+                    + (clearArmed ? ' is-armed' : '')
+                  }
+                  onClick={handleClearCommit}
+                  disabled={!clearArmed}
+                  aria-disabled={!clearArmed}
+                >
+                  <span className="settings-connectors-clear-commit-arm" aria-hidden="true" />
+                  <span className="settings-connectors-clear-commit-label">
+                    {clearArmed ? (
+                      t('settings.connectorsClearFinalConfirm')
+                    ) : (
+                      <>
+                        <Icon name="spinner" size={12} className="icon-spin" />
+                        {t('settings.connectorsClearArming')}
+                      </>
+                    )}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        ) : null}
+        <span
+          id="composio-api-key-help"
+          className={`hint${composioConfigLoading ? ' field-hint-loading' : ''}`}
+          role={composioConfigLoading ? 'status' : undefined}
+          aria-live={composioConfigLoading ? 'polite' : undefined}
+        >
+          {composioConfigLoading ? (
+            <>
+              <Icon name="spinner" size={11} className="icon-spin" />
+              <span>{t('settings.connectorsLoadingSavedKey')}</span>
+            </>
+          ) : keySaveStatus === 'error'
             ? t('settings.connectorsKeyError')
             : hasSavedKey
               ? t('settings.connectorsHelpSaved')
@@ -2385,6 +2603,18 @@ function OrbitSection({
     ? t('settings.orbit.gateTitle')
     : t('settings.orbit.runTitle');
 
+  // When the configuration gate is visible (no connector available) we
+  // also lock down every secondary control on the panel — schedule
+  // toggle, time input, prompt template select, and the missing-template
+  // Reset button. Touching any of them before a connector exists either
+  // produces a no-op or persists state the user can't actually exercise.
+  // Locking them keeps the panel honest, prevents "ghost configuration",
+  // and reinforces the gate's CTA as the only meaningful next step.
+  const controlsLocked = showConfigGate;
+  const controlsLockedHint = controlsLocked
+    ? t('settings.orbit.controlsLockedHint')
+    : undefined;
+
   return (
     <section className="settings-section orbit-section">
       {/* ---------- 1. HEADER ZONE ---------- */}
@@ -2493,9 +2723,26 @@ function OrbitSection({
           collapses the "two paired panels" pattern into one cohesive
           stack so users configure Orbit in one place. */}
       <div
-        className={`orbit-automation${orbit.enabled ? ' is-on' : ''}${selectedTemplate ? ' has-template' : ''}`}
+        className={`orbit-automation${orbit.enabled ? ' is-on' : ''}${selectedTemplate ? ' has-template' : ''}${controlsLocked ? ' is-locked' : ''}`}
         aria-busy={orbitTemplates === null || undefined}
+        aria-disabled={controlsLocked || undefined}
+        data-testid="orbit-automation-card"
       >
+        {controlsLocked ? (
+          <div
+            className="orbit-automation-lock-banner"
+            role="note"
+            aria-label={t('settings.orbit.controlsLockedHint')}
+          >
+            <Icon name="link" size={12} />
+            <span className="orbit-automation-lock-badge">
+              {t('settings.orbit.controlsLockedBadge')}
+            </span>
+            <span className="orbit-automation-lock-text">
+              {t('settings.orbit.controlsLockedHint')}
+            </span>
+          </div>
+        ) : null}
         <div className="orbit-automation-row orbit-automation-switch-row">
           <div className="orbit-automation-label">
             <span className="orbit-automation-title">{t('settings.orbit.dailySummaryTitle')}</span>
@@ -2507,7 +2754,10 @@ function OrbitSection({
             type="button"
             role="switch"
             aria-checked={orbit.enabled}
-            className={`orbit-switch${orbit.enabled ? ' is-on' : ''}`}
+            aria-disabled={controlsLocked || undefined}
+            className={`orbit-switch${orbit.enabled ? ' is-on' : ''}${controlsLocked ? ' is-locked' : ''}`}
+            disabled={controlsLocked}
+            title={controlsLockedHint}
             onClick={() => updateOrbit({ enabled: !orbit.enabled })}
           >
             <span className="orbit-switch-track" aria-hidden="true">
@@ -2535,6 +2785,9 @@ function OrbitSection({
               value={orbit.time}
               onChange={(e) => updateOrbit({ time: e.target.value || DEFAULT_ORBIT.time })}
               aria-label={t('settings.orbit.runTimeAria')}
+              aria-disabled={controlsLocked || undefined}
+              disabled={controlsLocked}
+              title={controlsLockedHint}
             />
             <div className="orbit-next-run" aria-live="polite">
               {orbit.enabled ? (
@@ -2602,12 +2855,18 @@ function OrbitSection({
                   <button
                     type="button"
                     className="orbit-automation-sub-action"
+                    disabled={controlsLocked}
+                    aria-disabled={controlsLocked || undefined}
                     onClick={() =>
                       updateOrbit({ templateSkillId: DEFAULT_ORBIT.templateSkillId })
                     }
-                    title={t('settings.orbit.templateResetTitle', {
-                      id: DEFAULT_ORBIT.templateSkillId,
-                    })}
+                    title={
+                      controlsLocked
+                        ? t('settings.orbit.controlsLockedHint')
+                        : t('settings.orbit.templateResetTitle', {
+                            id: DEFAULT_ORBIT.templateSkillId,
+                          })
+                    }
                   >
                     {t('settings.orbit.templateReset')}
                   </button>
@@ -2626,8 +2885,10 @@ function OrbitSection({
                   id="orbit-template-select"
                   className="orbit-template-select-input"
                   aria-label={t('settings.orbit.templateAria')}
+                  aria-disabled={controlsLocked || undefined}
                   value={effectiveTemplateSkillId}
-                  disabled={orbitTemplates === null}
+                  disabled={orbitTemplates === null || controlsLocked}
+                  title={controlsLockedHint}
                   onChange={(e) => {
                     const next = e.target.value;
                     // Guard against the loading placeholder making it
@@ -2777,46 +3038,15 @@ function OrbitSection({
             </div>
           </dl>
         </div>
-      ) : (
+      ) : notice ? (
         <div
-          className={`orbit-firstrun${isBusy ? ' is-busy' : ''}`}
-          role="region"
-          aria-label={t('settings.orbit.emptyAria')}
+          className={`orbit-inline-notice is-${notice.kind}`}
+          role={notice.kind === 'error' ? 'alert' : 'status'}
         >
-          {/* Decorative orbit rings — pure CSS, ties the empty state to the
-              hero's accent gradient mark without introducing a new icon. */}
-          <div className="orbit-firstrun-glyph" aria-hidden="true">
-            <span className="orbit-firstrun-ring orbit-firstrun-ring-outer" />
-            <span className="orbit-firstrun-ring orbit-firstrun-ring-inner" />
-            <span className="orbit-firstrun-planet" />
-          </div>
-          <div className="orbit-firstrun-copy">
-            <span className="orbit-firstrun-eyebrow">
-              {t('settings.orbit.emptyEyebrow')}
-            </span>
-            <h4 className="orbit-firstrun-title">
-              {t('settings.orbit.emptyTitle')}
-            </h4>
-            <p className="orbit-firstrun-body">
-              {orbit.enabled
-                ? <>{t('settings.orbit.emptyBodyScheduled')}</>
-                : <>{t('settings.orbit.emptyBodyManual')}</>}
-            </p>
-            {/* The empty state used to host its own primary CTA, but the
-                hero already exposes "Run it now" — we removed the duplicate
-                and keep this slot reserved for inline run-status feedback so
-                error/success messages still have a home in the empty state. */}
-            {notice ? (
-              <span
-                className={`orbit-firstrun-notice is-${notice.kind}`}
-                role={notice.kind === 'error' ? 'alert' : 'status'}
-              >
-                {notice.message}
-              </span>
-            ) : null}
-          </div>
+          <Icon name={notice.kind === 'error' ? 'close' : 'check'} size={12} />
+          <span>{notice.message}</span>
         </div>
-      )}
+      ) : null}
 
       {/* ---------- 5. LIVE ARTIFACT STRIP ---------- */}
       {lastRun ? (

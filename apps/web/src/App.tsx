@@ -91,6 +91,15 @@ export function App() {
   // fetches. The entry view uses this to show shimmer / skeleton states
   // instead of an "empty" page that flickers before data lands.
   const [bootstrapping, setBootstrapping] = useState(true);
+  // Narrower flag dedicated to the Composio API key hydration. The key is
+  // persisted by the daemon (and only reflected back via apiKeyConfigured
+  // + apiKeyTail), so after a dev-server restart there is a window where
+  // the dialog can render an empty Composio input even though a saved key
+  // exists. Settings → Connectors uses this to render a skeleton over the
+  // input + buttons instead of an empty input that the user might
+  // mistake for "no key saved" — and to disable Save/Clear so a misclick
+  // can't overwrite the saved state with `''` before hydration lands.
+  const [composioConfigLoading, setComposioConfigLoading] = useState(true);
   const route = useRoute();
 
   // Sync theme preference to the <html> element so CSS variables pick it up.
@@ -206,6 +215,12 @@ export function App() {
         return next;
       });
       setBootstrapping(false);
+      // Composio hydration is part of the same Promise.all above — by the
+      // time we land here either the daemon returned the saved-key shape
+      // (apiKeyConfigured + tail) or the daemon was offline and we kept
+      // whatever localStorage held. Either way it is safe to drop the
+      // skeleton: the input now reflects the source of truth.
+      setComposioConfigLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -633,6 +648,7 @@ export function App() {
           appVersionInfo={appVersionInfo}
           welcome={settingsWelcome}
           initialSection={settingsInitialSection}
+          composioConfigLoading={composioConfigLoading}
           onPersist={handleConfigPersist}
           onPersistComposioKey={handleConfigPersistComposioKey}
           onClose={() => {

@@ -196,6 +196,14 @@ export interface Dict {
   'settings.connectorsReplaceKeyPlaceholder': string;
   'settings.connectorsApiKeyPlaceholder': string;
   'settings.connectorsClear': string;
+  'settings.connectorsClearConfirmTitle': string;
+  'settings.connectorsClearConfirmBody': string;
+  'settings.connectorsClearConfirmContinue': string;
+  'settings.connectorsClearFinalTitle': string;
+  'settings.connectorsClearFinalBody': string;
+  'settings.connectorsClearFinalConfirm': string;
+  'settings.connectorsClearArming': string;
+  'settings.connectorsClearCancel': string;
   'settings.connectorsSaveKey': string;
   'settings.connectorsSaveKeyTitle': string;
   'settings.connectorsKeySaving': string;
@@ -203,6 +211,7 @@ export interface Dict {
   'settings.connectorsHelpSaved': string;
   'settings.connectorsHelpUnsaved': string;
   'settings.connectorsHelpEmpty': string;
+  'settings.connectorsLoadingSavedKey': string;
   'settings.autosaveSaving': string;
   'settings.autosaveSaved': string;
   'settings.autosaveError': string;
@@ -247,11 +256,6 @@ export interface Dict {
   'settings.orbit.countSucceeded': string;
   'settings.orbit.countSkipped': string;
   'settings.orbit.countFailed': string;
-  'settings.orbit.emptyAria': string;
-  'settings.orbit.emptyEyebrow': string;
-  'settings.orbit.emptyTitle': string;
-  'settings.orbit.emptyBodyScheduled': string;
-  'settings.orbit.emptyBodyManual': string;
   'settings.orbit.runError': string;
   'settings.orbit.artifactKickerLive': string;
   'settings.orbit.artifactKickerLegacy': string;
@@ -271,6 +275,8 @@ export interface Dict {
   'settings.orbit.gateAction': string;
   'settings.orbit.gateActionNoKey': string;
   'settings.orbit.gateLoading': string;
+  'settings.orbit.controlsLockedBadge': string;
+  'settings.orbit.controlsLockedHint': string;
 
   // Notifications (settings + system notifications)
   'settings.notifications': string;

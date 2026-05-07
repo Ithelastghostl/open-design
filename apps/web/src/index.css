@@ -1335,8 +1335,223 @@ code {
   flex-wrap: wrap;
 }
 @media (max-width: 540px) {
-  .settings-section-connectors .field-row > input {
+  .settings-section-connectors .field-row > input,
+  .settings-section-connectors .field-row > .field-input-skeleton-wrap {
     flex: 1 1 100%;
+  }
+}
+
+/* Two-stage destructive confirmation for clearing the saved Composio
+   API key. Step 1 ("confirm") is a soft amber-ish warning rooted in
+   the same red palette as other destructive surfaces so it reads as
+   "this will undo something" without screaming. Step 2 ("final") leans
+   into red with a brief arming animation on the commit button so a
+   reflex double-click cannot blow through both stages. The whole panel
+   collapses inline beneath the credentials field so the destructive
+   action stays visually anchored to the row that started it. */
+.settings-connectors-clear.is-arming {
+  border-color: var(--red-border);
+  color: var(--red);
+  background: color-mix(in srgb, var(--red-bg) 65%, transparent);
+}
+.settings-connectors-clear-confirm {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--red-border);
+  background: color-mix(in srgb, var(--red-bg) 78%, transparent);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.45;
+  animation: settings-connectors-clear-confirm-in 180ms ease-out;
+}
+.settings-connectors-clear-confirm.is-final {
+  background: var(--red-bg);
+  border-color: color-mix(in srgb, var(--red) 55%, var(--red-border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--red) 18%, transparent),
+    0 8px 24px -16px color-mix(in srgb, var(--red) 80%, transparent);
+}
+@keyframes settings-connectors-clear-confirm-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.settings-connectors-clear-confirm-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--red) 35%, var(--red-border));
+  background: var(--bg-panel);
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.settings-connectors-clear-confirm.is-final .settings-connectors-clear-confirm-icon {
+  background: var(--red);
+  color: var(--bg-panel);
+  border-color: var(--red);
+}
+.settings-connectors-clear-confirm-glyph {
+  display: inline-block;
+  transform: translateY(-0.5px);
+}
+.settings-connectors-clear-confirm-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.settings-connectors-clear-confirm-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.3;
+}
+.settings-connectors-clear-confirm-copy span {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.settings-connectors-clear-confirm.is-final .settings-connectors-clear-confirm-copy strong {
+  color: var(--red);
+}
+.settings-connectors-clear-confirm-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+/* "Continue" — moves to stage 2. Styled as a quiet outlined button
+   tinted with the red palette so it reads as "destructive but not
+   yet committed". */
+.settings-connectors-clear-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--red-border);
+  background: var(--bg-panel);
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease-out,
+    border-color 120ms ease-out,
+    transform 120ms ease-out;
+}
+.settings-connectors-clear-step:hover {
+  background: color-mix(in srgb, var(--red-bg) 60%, var(--bg-panel));
+  border-color: var(--red);
+}
+.settings-connectors-clear-step:active {
+  transform: translateY(1px);
+}
+/* Final commit button. Solid red with an arming sweep that fills the
+   left edge for ~700ms before the click is honored. While "arming",
+   the button is visually hot but disabled so an Enter-spam can't get
+   ahead of the user's intent; once armed, the label swaps to the
+   destructive verb and the click commits. */
+.settings-connectors-clear-commit {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 200px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: var(--bg-panel);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    transform 120ms ease-out,
+    box-shadow 160ms ease-out,
+    background 160ms ease-out;
+}
+.settings-connectors-clear-commit:disabled,
+.settings-connectors-clear-commit[aria-disabled='true'] {
+  cursor: progress;
+  background: color-mix(in srgb, var(--red) 70%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--red) 60%, var(--red-border));
+}
+.settings-connectors-clear-commit.is-armed {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent),
+    0 10px 20px -12px color-mix(in srgb, var(--red) 75%, transparent);
+}
+.settings-connectors-clear-commit.is-armed:hover {
+  background: color-mix(in srgb, var(--red) 88%, #000);
+}
+.settings-connectors-clear-commit.is-armed:active {
+  transform: translateY(1px);
+}
+/* The arming sweep — a translucent fill that races from left to right
+   over the disabled window, signaling "almost ready". CSS-only so it
+   renders the same in every browser without a second timer. */
+.settings-connectors-clear-commit-arm {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #fff 28%, transparent) 0%,
+    color-mix(in srgb, #fff 12%, transparent) 100%
+  );
+  transform: translateX(-100%);
+  opacity: 0.85;
+  animation: settings-connectors-clear-commit-arm 700ms ease-out forwards;
+}
+.settings-connectors-clear-commit.is-armed .settings-connectors-clear-commit-arm {
+  display: none;
+}
+@keyframes settings-connectors-clear-commit-arm {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0%); }
+}
+.settings-connectors-clear-commit-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+}
+@media (max-width: 540px) {
+  .settings-connectors-clear-confirm {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+  .settings-connectors-clear-confirm-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .settings-connectors-clear-commit {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-connectors-clear-confirm {
+    animation: none;
+  }
+  .settings-connectors-clear-commit-arm {
+    animation: none;
+    transform: translateX(0%);
+    opacity: 0.4;
   }
 }
 .settings-sidebar {
@@ -1711,6 +1926,97 @@ code {
     linear-gradient(180deg, color-mix(in srgb, var(--accent-tint) 40%, var(--bg-panel)) 0%, var(--bg-panel) 40%);
 }
 
+/* ---------- Locked state ----------
+   When no Composio connector is wired up the automation card collapses
+   into a passive, gated surface. We desaturate the hue, tighten contrast,
+   and overlay a soft diagonal sheen so the card reads as "intentionally
+   off" rather than "broken styling". The lock banner above the rows
+   names the prerequisite plainly and points back to the Connectors gate
+   without competing with it. */
+.orbit-automation.is-locked {
+  border-color: color-mix(in srgb, var(--text-soft) 22%, var(--border));
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--text-soft) 4%, transparent) 0 6px,
+      transparent 6px 14px
+    ),
+    var(--bg-subtle);
+  filter: saturate(0.55);
+}
+.orbit-automation.is-locked.is-on {
+  /* When the user previously had the schedule on but later removed the
+     last connector we still show the "on" gradient very faintly — but
+     the locked treatment wins so the panel reads as gated. */
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--text-soft) 4%, transparent) 0 6px,
+      transparent 6px 14px
+    ),
+    var(--bg-subtle);
+}
+.orbit-automation.is-locked .orbit-automation-row {
+  /* Block any accidental click-through into the row's whitespace; real
+     controls retain their own pointer behavior via :disabled. */
+  cursor: not-allowed;
+}
+.orbit-automation.is-locked .orbit-automation-title,
+.orbit-automation.is-locked .orbit-automation-sub {
+  color: var(--text-soft);
+}
+.orbit-automation.is-locked .orbit-time-input,
+.orbit-automation.is-locked .orbit-switch,
+.orbit-automation.is-locked .orbit-template-select-input,
+.orbit-automation.is-locked .orbit-automation-sub-action {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.orbit-automation.is-locked .orbit-time-input:disabled,
+.orbit-automation.is-locked .orbit-template-select-input:disabled {
+  /* The native :disabled state already dims; keep our own opacity tuned
+     so it matches the surrounding desaturated card. */
+  background: color-mix(in srgb, var(--text-soft) 6%, var(--bg-subtle));
+}
+
+/* Lock banner — sits above the configuration rows and names the gate
+   reason in a single line. Compact, low-contrast accent so it reads as
+   metadata rather than a second hero. */
+.orbit-automation-lock-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.orbit-automation-lock-banner svg {
+  color: var(--accent-strong);
+  flex-shrink: 0;
+}
+.orbit-automation-lock-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  flex-shrink: 0;
+}
+.orbit-automation-lock-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .orbit-automation-lock-text { white-space: normal; }
+}
+
 .orbit-automation-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1770,6 +2076,22 @@ code {
 .orbit-switch:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+.orbit-switch:disabled,
+.orbit-switch.is-locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-soft);
+}
+.orbit-switch:disabled .orbit-switch-track,
+.orbit-switch.is-locked .orbit-switch-track {
+  background: var(--border);
+}
+.orbit-switch:disabled.is-on .orbit-switch-track,
+.orbit-switch.is-locked.is-on .orbit-switch-track {
+  background: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 .orbit-switch-track {
   position: relative;
@@ -1981,6 +2303,9 @@ code {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .orbit-template-select-input:disabled {
+  /* While the skill registry is loading we show a progress cursor; the
+     locked variant overrides this back to not-allowed via the parent
+     `.orbit-automation.is-locked` rule above. */
   cursor: progress;
   opacity: 0.65;
 }
@@ -2335,144 +2660,6 @@ code {
   .orbit-config-gate-actions {
     grid-column: 1 / -1;
     justify-content: flex-start;
-  }
-}
-
-/* ---------- 3b. First-run prompt (replaces the receipt when no runs yet) ----
-   Designed to feel like a deliberate "this is what's coming" panel rather than
-   a degraded receipt. Two balanced regions echo the hero's structure:
-   orbit glyph (rhymes with the hero accent tile) · framed copy. The empty
-   state used to host its own primary CTA, but the hero's "Run & open"
-   already provides the only run trigger needed — duplicating it here read
-   as redundant, so the action column was removed and the panel collapses
-   to a glyph + copy layout. Run-status feedback (errors/success) is
-   inlined inside the copy block so messages still surface here. */
-.orbit-firstrun {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 18px;
-  padding: 18px 20px;
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
-  border-radius: var(--radius);
-  background:
-    radial-gradient(120% 160% at 0% 50%, color-mix(in srgb, var(--accent-tint) 75%, transparent) 0%, transparent 55%),
-    var(--bg-panel);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
-}
-.orbit-firstrun::after {
-  /* Soft outer ring decoration in the corner — purely visual, ties to the
-     orbit metaphor without competing with the central glyph. */
-  content: '';
-  position: absolute;
-  right: -60px;
-  top: -60px;
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
-  pointer-events: none;
-}
-
-.orbit-firstrun-glyph {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.orbit-firstrun-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px dashed color-mix(in srgb, var(--accent) 38%, transparent);
-}
-.orbit-firstrun-ring-outer {
-  inset: 0;
-  animation: orbitFirstrunSpin 18s linear infinite;
-}
-.orbit-firstrun-ring-inner {
-  inset: 10px;
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
-  animation: orbitFirstrunSpin 12s linear infinite reverse;
-}
-.orbit-firstrun-planet {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, #000) 100%);
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 32%, transparent);
-}
-.orbit-firstrun.is-busy .orbit-firstrun-ring-outer { animation-duration: 4s; }
-.orbit-firstrun.is-busy .orbit-firstrun-ring-inner { animation-duration: 3s; }
-.orbit-firstrun.is-busy .orbit-firstrun-planet {
-  animation: pulse 1.4s ease-in-out infinite;
-}
-@keyframes orbitFirstrunSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .orbit-firstrun-ring,
-  .orbit-firstrun.is-busy .orbit-firstrun-planet { animation: none !important; }
-}
-
-.orbit-firstrun-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.orbit-firstrun-eyebrow {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent-strong);
-}
-.orbit-firstrun-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 650;
-  letter-spacing: -0.005em;
-  color: var(--text-strong);
-  line-height: 1.3;
-}
-.orbit-firstrun-body {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  max-width: 52ch;
-}
-.orbit-firstrun-body strong {
-  color: var(--text);
-  font-weight: 600;
-}
-
-/* Inline run-status feedback. Sits at the bottom of the copy block now
-   that the empty-state CTA has been removed; previously this notice was
-   anchored under the duplicate "Generate & open" button. */
-.orbit-firstrun-notice {
-  display: inline-flex;
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--text-muted);
-  line-height: 1.4;
-  max-width: 52ch;
-}
-.orbit-firstrun-notice.is-error { color: var(--red); }
-.orbit-firstrun-notice.is-success { color: var(--green); }
-
-@media (max-width: 620px) {
-  .orbit-firstrun {
-    grid-template-columns: auto minmax(0, 1fr);
-    row-gap: 12px;
   }
 }
 
@@ -8774,7 +8961,7 @@ button.connector-action.is-loading {
   justify-content: space-between;
   gap: 16px;
 }
-.field-label-row a {
+.field-label-row a:not(.field-label-link) {
   color: var(--accent);
   font-size: 13px;
   white-space: nowrap;
@@ -8788,8 +8975,8 @@ button.connector-action.is-loading {
 .field-label-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
+  gap: 3px;
+  font-size: 10.5px;
   color: var(--text-muted);
   text-decoration: none;
   white-space: nowrap;
@@ -8818,6 +9005,111 @@ button.connector-action.is-loading {
   background: color-mix(in srgb, #1f9d55 10%, transparent);
   border: 1px solid color-mix(in srgb, #1f9d55 28%, var(--border));
   font-variant-numeric: tabular-nums;
+}
+/* ---------- Composio API key skeleton ----------
+   The Composio config is daemon-backed, so on first paint after a
+   restart there is a window where the section renders empty even
+   though a saved key exists. Rather than show a misleading "no key
+   saved" state, we overlay a skeleton on the input + chip + buttons
+   so the user understands the field is still resolving.
+   We intentionally keep the real input mounted underneath the shimmer
+   so focus, autofill, and accessibility nodes are not torn down on
+   resolve — the parent label gets aria-busy and the disabled flags
+   on the buttons are the structural safety net. */
+.field-status-badge-skeleton {
+  /* Same footprint as the saved-state chip so the row geometry
+     doesn't shift when hydration completes. The width is a
+     calibrated guess for a "Saved · ••••XXXX" string; close enough
+     that the swap-in feels stable without depending on the actual
+     tail length. */
+  width: 86px;
+  height: 18px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--text-soft) 8%, var(--bg-subtle)) 0%,
+      color-mix(in srgb, var(--text-soft) 18%, var(--bg-subtle)) 50%,
+      color-mix(in srgb, var(--text-soft) 8%, var(--bg-subtle)) 100%
+    );
+  background-size: 200% 100%;
+  animation: settingsSkeletonShimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-pill);
+  padding: 0;
+  color: transparent;
+}
+
+.field-input-skeleton-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.field-input-skeleton-wrap > input {
+  flex: 1;
+  min-width: 0;
+}
+.field-input-skeleton-shimmer {
+  position: absolute;
+  inset: 1px;
+  border-radius: var(--radius);
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--text-soft) 14%, transparent) 50%,
+      transparent 100%
+    );
+  background-size: 220% 100%;
+  animation: settingsSkeletonShimmer 1.6s ease-in-out infinite;
+}
+
+/* The whole credentials field gets a softened, "we're checking" feel
+   while loading: muted label, slightly desaturated input chrome.
+   Matches the broader Settings shimmer language. */
+.settings-section-connectors-credentials.is-loading .field-label {
+  color: var(--text-muted);
+}
+.settings-section-connectors-credentials.is-loading input:disabled {
+  cursor: progress;
+  background: color-mix(in srgb, var(--text-soft) 4%, var(--bg-subtle));
+  /* Preserve readable placeholder color even when disabled — the
+     placeholder doubles as the "Checking for a saved key…" cue. */
+  color: var(--text-muted);
+  -webkit-text-fill-color: var(--text-muted);
+}
+.settings-section-connectors-credentials.is-loading input:disabled::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+/* Inline status hint variant — the help line below the input becomes
+   a small spinner + status string while loading. Sits in the same
+   slot as the regular hint so layout doesn't jump. */
+.field-hint-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+.field-hint-loading svg {
+  color: var(--accent-strong);
+  flex-shrink: 0;
+}
+
+@keyframes settingsSkeletonShimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .field-status-badge-skeleton,
+  .field-input-skeleton-shimmer {
+    animation: none;
+  }
+  .field-input-skeleton-shimmer {
+    background: color-mix(in srgb, var(--text-soft) 8%, transparent);
+  }
 }
 .deploy-form input,
 .deploy-form select {
