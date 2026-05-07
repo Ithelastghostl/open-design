@@ -1000,4 +1000,12 @@ export const uk: Dict = {
   'notify.failureTitle': 'Завдання не вдалося',
   'notify.successBody': 'Черга завершена.',
   'notify.failureBody': 'Завдання завершилось помилкою.',
+
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Експорт діагностики',
+  'diagnostics.exportButton': 'Експорт діагностики',
+  'diagnostics.exportHint': 'Збирає останні журнали застосунку та інформацію про пристрій у zip для надсилання команді.',
+  'diagnostics.exporting': 'Експортування…',
+  'diagnostics.exportSuccess': 'Діагностику збережено: {path}',
+  'diagnostics.exportFailed': 'Не вдалося експортувати діагностику: {message}',
 };

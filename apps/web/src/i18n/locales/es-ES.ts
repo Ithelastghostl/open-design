@@ -924,4 +924,11 @@ export const esES: Dict = {
   'notify.failureTitle': 'La tarea falló',
   'notify.successBody': 'Un turno ha terminado.',
   'notify.failureBody': 'La tarea terminó con un error.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Exportar diagnósticos',
+  'diagnostics.exportButton': 'Exportar diagnósticos',
+  'diagnostics.exportHint': 'Empaqueta los registros recientes y la información del equipo en un zip para enviar al soporte.',
+  'diagnostics.exporting': 'Exportando…',
+  'diagnostics.exportSuccess': 'Diagnósticos guardados en {path}',
+  'diagnostics.exportFailed': 'No se pudieron exportar los diagnósticos: {message}',
 };

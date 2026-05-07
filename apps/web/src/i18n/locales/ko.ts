@@ -969,4 +969,11 @@ export const ko: Dict = {
   'notify.failureTitle': '작업 실패',
   'notify.successBody': '한 턴이 끝났습니다.',
   'notify.failureBody': '작업이 오류로 종료되었습니다.',
+  // Diagnostics export
+  'diagnostics.exportTitle': '진단 정보 내보내기',
+  'diagnostics.exportButton': '진단 정보 내보내기',
+  'diagnostics.exportHint': '최근 앱 로그와 기기 정보를 zip으로 묶어 팀에 공유할 수 있게 만듭니다.',
+  'diagnostics.exporting': '내보내는 중…',
+  'diagnostics.exportSuccess': '진단 정보를 {path}에 저장했습니다',
+  'diagnostics.exportFailed': '진단 정보 내보내기 실패: {message}',
 };

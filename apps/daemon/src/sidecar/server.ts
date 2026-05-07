@@ -62,9 +62,19 @@ function attachParentMonitor(stop: () => Promise<void>): void {
 }
 
 export async function startDaemonSidecar(runtime: SidecarRuntimeContext<SidecarStamp>): Promise<DaemonSidecarHandle> {
-  const started = await startServer({ port: parsePort(process.env[DAEMON_PORT_ENV]), returnServer: true }) as
-    | string
-    | { server: Server; url: string };
+  // startServer is declared in a // @ts-nocheck file so its `runtime`
+  // parameter inferred as `null`. Cast at the call site to keep the
+  // sidecar boundary typed without disturbing the legacy server module.
+  const startServerTyped = startServer as unknown as (opts: {
+    port: number;
+    returnServer: true;
+    runtime: SidecarRuntimeContext<SidecarStamp>;
+  }) => Promise<string | { server: Server; url: string }>;
+  const started = await startServerTyped({
+    port: parsePort(process.env[DAEMON_PORT_ENV]),
+    returnServer: true,
+    runtime,
+  });
   if (typeof started === "string") {
     throw new Error("daemon startServer did not return a server handle");
   }

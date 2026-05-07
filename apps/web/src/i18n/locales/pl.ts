@@ -969,4 +969,11 @@ export const pl: Dict = {
   'notify.failureTitle': 'Zadanie nieudane',
   'notify.successBody': 'Tura zakończona.',
   'notify.failureBody': 'Zadanie zakończyło się błędem.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Eksportuj diagnostykę',
+  'diagnostics.exportButton': 'Eksportuj diagnostykę',
+  'diagnostics.exportHint': 'Pakuje ostatnie logi aplikacji i informacje o urządzeniu w archiwum zip do wysłania zespołowi.',
+  'diagnostics.exporting': 'Eksportowanie…',
+  'diagnostics.exportSuccess': 'Diagnostyka zapisana w {path}',
+  'diagnostics.exportFailed': 'Nie udało się wyeksportować diagnostyki: {message}',
 };

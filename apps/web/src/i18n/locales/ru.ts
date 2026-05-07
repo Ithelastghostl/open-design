@@ -999,4 +999,11 @@ export const ru: Dict = {
   'notify.failureTitle': 'Задача завершилась с ошибкой',
   'notify.successBody': 'Ход завершён.',
   'notify.failureBody': 'Задача завершилась с ошибкой.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Экспорт диагностики',
+  'diagnostics.exportButton': 'Экспорт диагностики',
+  'diagnostics.exportHint': 'Упаковывает недавние журналы приложения и сведения о машине в zip для отправки команде.',
+  'diagnostics.exporting': 'Экспортирование…',
+  'diagnostics.exportSuccess': 'Диагностика сохранена: {path}',
+  'diagnostics.exportFailed': 'Не удалось экспортировать диагностику: {message}',
 };

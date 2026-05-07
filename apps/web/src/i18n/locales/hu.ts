@@ -979,4 +979,11 @@ export const hu: Dict = {
   'notify.failureTitle': 'A feladat meghiúsult',
   'notify.successBody': 'Egy kör befejeződött.',
   'notify.failureBody': 'A feladat hibával ért véget.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Diagnosztika exportálása',
+  'diagnostics.exportButton': 'Diagnosztika exportálása',
+  'diagnostics.exportHint': 'A legutóbbi alkalmazásnaplókat és gépinformációkat zip fájlba csomagolja a csapatnak való elküldéshez.',
+  'diagnostics.exporting': 'Exportálás…',
+  'diagnostics.exportSuccess': 'Diagnosztika mentve: {path}',
+  'diagnostics.exportFailed': 'Diagnosztika exportálása sikertelen: {message}',
 };

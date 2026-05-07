@@ -969,4 +969,12 @@ export const fr: Dict = {
   'notify.failureTitle': 'Tâche échouée',
   'notify.successBody': 'Un tour est terminé.',
   'notify.failureBody': 'La tâche s\'est terminée avec une erreur.',
+
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Exporter le diagnostic',
+  'diagnostics.exportButton': 'Exporter le diagnostic',
+  'diagnostics.exportHint': 'Compresse les journaux récents et les informations machine dans un zip à partager avec l\'équipe.',
+  'diagnostics.exporting': 'Exportation…',
+  'diagnostics.exportSuccess': 'Diagnostic enregistré dans {path}',
+  'diagnostics.exportFailed': 'Impossible d\'exporter le diagnostic: {message}',
 };

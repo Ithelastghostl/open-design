@@ -988,4 +988,12 @@ export const id: Dict = {
   'notify.failureTitle': 'Pembuatan gagal',
   'notify.successBody': 'Artifact siap dilihat.',
   'notify.failureBody': 'Cek chat untuk detail error.',
+
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Ekspor diagnostik',
+  'diagnostics.exportButton': 'Ekspor diagnostik',
+  'diagnostics.exportHint': 'Mengemas log aplikasi terbaru dan info perangkat ke dalam zip untuk dibagikan ke tim.',
+  'diagnostics.exporting': 'Mengekspor…',
+  'diagnostics.exportSuccess': 'Diagnostik disimpan di {path}',
+  'diagnostics.exportFailed': 'Gagal mengekspor diagnostik: {message}',
 };

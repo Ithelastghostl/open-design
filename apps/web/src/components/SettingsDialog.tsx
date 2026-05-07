@@ -3,6 +3,7 @@ import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { LOCALE_LABEL, LOCALES, useI18n } from '../i18n';
 import type { Locale } from '../i18n';
 import { AgentIcon } from './AgentIcon';
+import { ExportDiagnosticsRow } from './ExportDiagnosticsButton';
 import { Icon } from './Icon';
 import {
   CUSTOM_MODEL_SENTINEL,
@@ -1673,6 +1674,13 @@ export function SettingsDialog({
               ) : (
                 <div className="empty-card">{t('settings.versionUnavailable')}</div>
               )}
+              <div className="settings-about-diagnostics">
+                <div className="settings-about-diagnostics-text">
+                  <h4>{t('diagnostics.exportTitle')}</h4>
+                  <p className="hint">{t('diagnostics.exportHint')}</p>
+                </div>
+                <ExportDiagnosticsRow />
+              </div>
             </section>
           ) : null}
           </div>

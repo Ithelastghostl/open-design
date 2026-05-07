@@ -960,4 +960,11 @@ export const tr: Dict = {
   'notify.failureTitle': 'Görev başarısız oldu',
   'notify.successBody': 'Bir tur tamamlandı.',
   'notify.failureBody': 'Görev bir hata ile sona erdi.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Tanılama dışa aktar',
+  'diagnostics.exportButton': 'Tanılama dışa aktar',
+  'diagnostics.exportHint': 'Son uygulama günlüklerini ve makine bilgilerini ekibe gönderebileceğiniz bir zip dosyasında paketler.',
+  'diagnostics.exporting': 'Dışa aktarılıyor…',
+  'diagnostics.exportSuccess': 'Tanılama {path} konumuna kaydedildi',
+  'diagnostics.exportFailed': 'Tanılama dışa aktarılamadı: {message}',
 };

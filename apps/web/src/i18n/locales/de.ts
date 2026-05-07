@@ -923,4 +923,11 @@ export const de: Dict = {
   'notify.failureTitle': 'Aufgabe fehlgeschlagen',
   'notify.successBody': 'Eine Runde ist abgeschlossen.',
   'notify.failureBody': 'Die Aufgabe wurde mit einem Fehler beendet.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Diagnose exportieren',
+  'diagnostics.exportButton': 'Diagnose exportieren',
+  'diagnostics.exportHint': 'Bündelt die aktuellen App-Logs und Geräteinformationen in ein Zip-Archiv, das du mit dem Team teilen kannst.',
+  'diagnostics.exporting': 'Exportiere…',
+  'diagnostics.exportSuccess': 'Diagnose gespeichert: {path}',
+  'diagnostics.exportFailed': 'Diagnose-Export fehlgeschlagen: {message}',
 };

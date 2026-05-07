@@ -1,7 +1,7 @@
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { app } from "electron";
+import { BrowserWindow, Menu, app } from "electron";
 
 import {
   APP_KEYS,
@@ -15,17 +15,25 @@ import {
   type SidecarStamp,
   type WebStatusSnapshot,
 } from "@open-design/sidecar-proto";
+import { dirname, join } from "node:path";
+
 import {
   bootstrapSidecarRuntime,
   createJsonIpcServer,
   requestJsonIpc,
   resolveAppIpcPath,
+  resolveLogFilePath,
+  resolveNamespaceRoot,
   type JsonIpcServerHandle,
   type SidecarRuntimeContext,
 } from "@open-design/sidecar";
 import { readProcessStamp } from "@open-design/platform";
 
 import { createDesktopRuntime } from "./runtime.js";
+import {
+  exportDiagnosticsToFile,
+  registerDesktopDiagnosticsIpc,
+} from "./diagnostics.js";
 
 const TOOLS_DEV_PARENT_PID_ENV = SIDECAR_ENV.TOOLS_DEV_PARENT_PID;
 
@@ -66,6 +74,44 @@ function attachParentMonitor(stop: () => Promise<void>): void {
   timer.unref();
 }
 
+function installApplicationMenu(runtime: SidecarRuntimeContext<SidecarStamp>): void {
+  const isMac = process.platform === "darwin";
+  const exportClick = () => {
+    const focused = BrowserWindow.getFocusedWindow();
+    void exportDiagnosticsToFile(runtime, focused).catch((error: unknown) => {
+      console.error("desktop diagnostics export from menu failed", error);
+    });
+  };
+
+  const helpSubmenu: Electron.MenuItemConstructorOptions[] = [
+    { label: "Export Diagnostics…", click: exportClick },
+  ];
+
+  const template: Electron.MenuItemConstructorOptions[] = [];
+  if (isMac) {
+    template.push({
+      label: app.name || "Open Design",
+      submenu: [
+        { role: "about" },
+        { type: "separator" },
+        { role: "services" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    });
+  }
+  template.push({ role: "editMenu" });
+  template.push({ role: "viewMenu" });
+  template.push({ role: "windowMenu" });
+  template.push({ label: "Help", role: "help", submenu: helpSubmenu });
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function createWebDiscovery(runtime: SidecarRuntimeContext<SidecarStamp>): () => Promise<string | null> {
   return async () => {
     const webIpc = resolveAppIpcPath({
@@ -84,9 +130,24 @@ export async function runDesktopMain(
 ): Promise<void> {
   await app.whenReady();
 
+  const namespaceRoot = resolveNamespaceRoot({
+    base: runtime.base,
+    contract: OPEN_DESIGN_SIDECAR_CONTRACT,
+    namespace: runtime.namespace,
+  });
+  const desktopLogPath = resolveLogFilePath({
+    app: APP_KEYS.DESKTOP,
+    contract: OPEN_DESIGN_SIDECAR_CONTRACT,
+    runtimeRoot: namespaceRoot,
+  });
+  const rendererLogPath = join(dirname(desktopLogPath), "renderer.log");
+
   const desktop = await createDesktopRuntime({
     discoverUrl: options.discoverWebUrl ?? createWebDiscovery(runtime),
+    rendererLogPath,
   });
+  const removeDiagnosticsIpc = registerDesktopDiagnosticsIpc(runtime);
+  installApplicationMenu(runtime);
   let ipcServer: JsonIpcServerHandle | null = null;
   let shuttingDown = false;
 
@@ -96,6 +157,7 @@ export async function runDesktopMain(
     await options.beforeShutdown?.().catch((error: unknown) => {
       console.error("desktop beforeShutdown failed", error);
     });
+    removeDiagnosticsIpc();
     await ipcServer?.close().catch(() => undefined);
     await desktop.close().catch(() => undefined);
     app.quit();

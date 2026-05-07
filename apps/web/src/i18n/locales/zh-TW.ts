@@ -981,4 +981,11 @@ export const zhTW: Dict = {
   'notify.failureTitle': '任務失敗',
   'notify.successBody': '一輪回答已經寫完。',
   'notify.failureBody': '本輪任務出錯，請查看錯誤訊息。',
+  // Diagnostics export
+  'diagnostics.exportTitle': '匯出診斷日誌',
+  'diagnostics.exportButton': '匯出診斷日誌',
+  'diagnostics.exportHint': '將近期的應用日誌與機器資訊打包成 zip,方便傳給我們排查問題。',
+  'diagnostics.exporting': '匯出中…',
+  'diagnostics.exportSuccess': '診斷日誌已儲存至 {path}',
+  'diagnostics.exportFailed': '匯出診斷日誌失敗：{message}',
 };

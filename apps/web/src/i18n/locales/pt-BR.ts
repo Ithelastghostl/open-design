@@ -999,4 +999,11 @@ export const ptBR: Dict = {
   'notify.failureTitle': 'Tarefa falhou',
   'notify.successBody': 'Uma rodada foi concluída.',
   'notify.failureBody': 'A tarefa terminou com erro.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Exportar diagnósticos',
+  'diagnostics.exportButton': 'Exportar diagnósticos',
+  'diagnostics.exportHint': 'Empacota logs recentes do app e informações do dispositivo em um zip para enviar à equipe.',
+  'diagnostics.exporting': 'Exportando…',
+  'diagnostics.exportSuccess': 'Diagnósticos salvos em {path}',
+  'diagnostics.exportFailed': 'Falha ao exportar diagnósticos: {message}',
 };

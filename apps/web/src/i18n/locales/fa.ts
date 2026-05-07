@@ -1001,4 +1001,11 @@ export const fa: Dict = {
   'notify.failureTitle': 'وظیفه ناموفق بود',
   'notify.successBody': 'یک نوبت به پایان رسید.',
   'notify.failureBody': 'وظیفه با خطا پایان یافت.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'صادر کردن تشخیص',
+  'diagnostics.exportButton': 'صادر کردن تشخیص',
+  'diagnostics.exportHint': 'گزارش‌های اخیر برنامه و اطلاعات دستگاه را در یک فایل zip بسته‌بندی می‌کند تا برای تیم ارسال شود.',
+  'diagnostics.exporting': 'در حال صادر کردن…',
+  'diagnostics.exportSuccess': 'تشخیص در {path} ذخیره شد',
+  'diagnostics.exportFailed': 'صادر کردن تشخیص ناموفق بود: {message}',
 };

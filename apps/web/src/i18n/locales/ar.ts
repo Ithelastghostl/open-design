@@ -969,4 +969,12 @@ export const ar: Dict = {
   'notify.failureTitle': 'فشلت المهمة',
   'notify.successBody': 'انتهت جولة.',
   'notify.failureBody': 'انتهت المهمة بخطأ.',
+
+  // Diagnostics export
+  'diagnostics.exportTitle': 'تصدير التشخيص',
+  'diagnostics.exportButton': 'تصدير التشخيص',
+  'diagnostics.exportHint': 'يحزم سجلات التطبيق الأخيرة ومعلومات الجهاز في ملف zip لمشاركته مع الفريق.',
+  'diagnostics.exporting': 'جارٍ التصدير…',
+  'diagnostics.exportSuccess': 'تم حفظ التشخيص في {path}',
+  'diagnostics.exportFailed': 'تعذّر تصدير التشخيص: {message}',
 };

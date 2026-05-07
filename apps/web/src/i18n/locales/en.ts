@@ -1000,4 +1000,11 @@ export const en: Dict = {
   'notify.failureTitle': 'Task failed',
   'notify.successBody': 'A turn has finished.',
   'notify.failureBody': 'The task ended with an error.',
+  // Diagnostics export
+  'diagnostics.exportTitle': 'Export diagnostics',
+  'diagnostics.exportButton': 'Export diagnostics',
+  'diagnostics.exportHint': 'Bundles recent app logs and machine info into a zip you can share with the team.',
+  'diagnostics.exporting': 'Exporting…',
+  'diagnostics.exportSuccess': 'Saved diagnostics to {path}',
+  'diagnostics.exportFailed': 'Could not export diagnostics: {message}',
 };

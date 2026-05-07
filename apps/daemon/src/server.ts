@@ -71,6 +71,8 @@ import {
 } from './media-models.js';
 import { readMaskedConfig, writeConfig } from './media-config.js';
 import { agentCliEnvForAgent, readAppConfig, writeAppConfig } from './app-config.js';
+import { createDiagnosticsExportHandler } from './diagnostics-export.js';
+import { DIAGNOSTICS_EXPORT_PATH } from '@open-design/diagnostics';
 import {
   buildProjectArchive,
   buildBatchArchive,
@@ -1327,7 +1329,7 @@ export function createSseResponse(
   };
 }
 
-export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST || '127.0.0.1', returnServer = false } = {}) {
+export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST || '127.0.0.1', returnServer = false, runtime = null } = {}) {
   let resolvedPort = port;
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -1479,6 +1481,11 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
       res.status(400).json({ error: String(err && err.message ? err.message : err) });
     }
   });
+
+  app.get(
+    DIAGNOSTICS_EXPORT_PATH,
+    createDiagnosticsExportHandler({ runtime, projectRoot: PROJECT_ROOT }),
+  );
 
   // ---- Projects (DB-backed) -------------------------------------------------
 

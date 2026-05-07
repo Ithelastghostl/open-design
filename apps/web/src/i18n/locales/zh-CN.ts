@@ -981,4 +981,11 @@ export const zhCN: Dict = {
   'notify.failureTitle': '任务失败',
   'notify.successBody': '一轮回答已经写完。',
   'notify.failureBody': '本轮任务出错，请查看错误信息。',
+  // Diagnostics export
+  'diagnostics.exportTitle': '导出诊断日志',
+  'diagnostics.exportButton': '导出诊断日志',
+  'diagnostics.exportHint': '将近期的应用日志和机器信息打包成 zip,方便发给我们排查问题。',
+  'diagnostics.exporting': '导出中…',
+  'diagnostics.exportSuccess': '诊断日志已保存到 {path}',
+  'diagnostics.exportFailed': '导出诊断日志失败：{message}',
 };
