@@ -416,6 +416,56 @@ describe('connector execution policy', () => {
     expect(service.listDefinitionsCallCount).toBe(0);
   });
 
+  it('forces dynamic definitions when restored credentials are absent from fast definitions', async () => {
+    const definition = externalConnector({
+      id: 'dynamic_mail',
+      name: 'Dynamic Mail',
+      provider: 'composio',
+      tools: [{
+        name: 'mail.recent_messages',
+        title: 'Recent messages',
+        requiredScopes: ['mail:read'],
+        safety: { sideEffect: 'read', approval: 'auto', reason: 'read-only mail summary' },
+        refreshEligible: true,
+        curation: { useCases: ['personal_daily_digest'] },
+      }],
+      allowedToolNames: ['mail.recent_messages'],
+      minimumApproval: 'auto',
+    });
+    const credentialStore = new InMemoryConnectorCredentialStore();
+    credentialStore.set({
+      schemaVersion: 1,
+      connectorId: 'dynamic_mail',
+      accountLabel: 'mail@example.com',
+      credentials: { provider: 'composio', providerConnectionId: 'ca_dynamic_mail' },
+      updatedAt: '2026-05-07T00:00:00.000Z',
+    });
+    const service = new TestConnectorService(definition, new ConnectorStatusService({ credentialStore }));
+
+    await expect(listConnectorTools({
+      grant: {
+        token: 'test-token',
+        projectId: 'project-a',
+        runId: 'run-a',
+        allowedEndpoints: [],
+        allowedOperations: [],
+        issuedAt: '2026-04-30T00:00:00.000Z',
+        expiresAt: '2026-04-30T00:15:00.000Z',
+      },
+      projectsRoot: '/tmp/open-design-test',
+      service,
+      useCase: 'personal_daily_digest',
+    })).resolves.toEqual([
+      expect.objectContaining({
+        id: 'dynamic_mail',
+        status: 'connected',
+        accountLabel: 'mail@example.com',
+        tools: [expect.objectContaining({ name: 'mail.recent_messages' })],
+      }),
+    ]);
+    expect(service.listDefinitionsCallCount).toBe(1);
+  });
+
   it('rejects connector inputs that no longer match the current tool schema', async () => {
     const definition = externalConnector({
       tools: [{

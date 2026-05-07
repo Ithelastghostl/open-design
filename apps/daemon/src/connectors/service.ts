@@ -101,6 +101,7 @@ export interface ConnectorCredentialRecord {
 
 export interface ConnectorCredentialStore {
   get(connectorId: string): ConnectorCredentialRecord | undefined;
+  list?(): ConnectorCredentialRecord[];
   set(record: ConnectorCredentialRecord): void;
   delete(connectorId: string): void;
   deleteByProvider(provider: string): void;
@@ -129,6 +130,10 @@ export class InMemoryConnectorCredentialStore implements ConnectorCredentialStor
     return record === undefined ? undefined : { ...record, credentials: cloneCredentialMaterial(record.credentials) };
   }
 
+  list(): ConnectorCredentialRecord[] {
+    return Array.from(this.records.values()).map((record) => ({ ...record, credentials: cloneCredentialMaterial(record.credentials) }));
+  }
+
   set(record: ConnectorCredentialRecord): void {
     this.records.set(record.connectorId, { ...record, credentials: cloneCredentialMaterial(record.credentials) });
   }
@@ -153,6 +158,10 @@ export class FileConnectorCredentialStore implements ConnectorCredentialStore {
 
   get(connectorId: string): ConnectorCredentialRecord | undefined {
     return this.readRecords()[connectorId];
+  }
+
+  list(): ConnectorCredentialRecord[] {
+    return Object.values(this.readRecords());
   }
 
   set(record: ConnectorCredentialRecord): void {
@@ -347,9 +356,15 @@ export class ConnectorStatusService {
   }
 
   listStatuses(): Record<string, ConnectorConnectionStatus> {
-    return Object.fromEntries(
-      Array.from(this.statuses.entries()).map(([connectorId, status]) => [connectorId, cloneStatus(status)]),
+    const credentialStatuses = Object.fromEntries(
+      (this.credentialStore?.list?.() ?? []).map((record) => [record.connectorId, { status: 'connected', accountLabel: record.accountLabel } satisfies ConnectorConnectionStatus]),
     );
+    return {
+      ...credentialStatuses,
+      ...Object.fromEntries(
+        Array.from(this.statuses.entries()).map(([connectorId, status]) => [connectorId, cloneStatus(status)]),
+      ),
+    };
   }
 
   connect(definition: ConnectorCatalogDefinition, accountLabel?: string, credentials?: ConnectorCredentialMaterial): ConnectorConnectionStatus {

@@ -56,11 +56,10 @@ function matchesConnectorToolUseCase(tool: ConnectorToolDetail, useCase: Connect
 export async function listConnectorTools(context: ConnectorToolContext & { useCase?: ConnectorToolUseCase }): Promise<Awaited<ReturnType<ConnectorService['listConnectors']>>> {
   const service = context.service ?? connectorService;
   // Agent-facing tool discovery sits on the hot path for unattended Orbit
-  // runs. Do not call provider discovery here: Composio toolkit discovery can
-  // cold-start slowly and leave the agent with no data before its shell
-  // timeout. Static definitions plus locally persisted connection status are
-  // enough to expose the approved read-only tool surface, and execution still
-  // validates connection state and safety again before calling providers.
+  // runs, so prefer fast definitions. Fall back to provider discovery only
+  // when restored connection state references a connector missing from the
+  // fast catalog (or one with no tools), otherwise valid connected tools can
+  // disappear after daemon restart until another path refreshes discovery.
   const fastDefinitions = service.listFastDefinitions();
   const fastDefinitionsById = new Map(fastDefinitions.map((definition) => [definition.id, definition]));
   const connectedStatusIds = Object.entries(service.listConnectorStatuses())

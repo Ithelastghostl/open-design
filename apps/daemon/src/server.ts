@@ -14,6 +14,7 @@ import {
   renderCodexImagegenOverride,
   shouldRenderCodexImagegenOverride,
 } from './prompts/system.js';
+import { expandHomePrefix } from './home-expansion.js';
 import { createCommandInvocation } from '@open-design/platform';
 import {
   buildLiveArtifactsMcpServersForAgent,
@@ -45,6 +46,11 @@ import { subscribe as subscribeFileEvents } from './project-watchers.js';
 import { renderDesignSystemPreview } from './design-system-preview.js';
 import { renderDesignSystemShowcase } from './design-system-showcase.js';
 import { createChatRunService } from './runs.js';
+import {
+  testAgentConnection,
+  testProviderConnection,
+  validateBaseUrl,
+} from './connectionTest.js';
 import { importClaudeDesignZip } from './claude-design-import.js';
 import { listPromptTemplates, readPromptTemplate } from './prompt-templates.js';
 import { buildDocumentPreview } from './document-preview.js';
@@ -669,9 +675,15 @@ const PROMPT_TEMPLATES_DIR = resolveDaemonResourceDir(
 );
 export function resolveDataDir(raw, projectRoot) {
   if (!raw) return path.join(projectRoot, '.od');
-  const expanded = raw.startsWith('~/')
-    ? path.join(os.homedir(), raw.slice(2))
-    : raw;
+  // expandHomePrefix is shared with media-config.ts so OD_DATA_DIR and
+  // OD_MEDIA_CONFIG_DIR can never split state under a $HOME-style value.
+  // Some launchers (systemd unit files, NixOS modules, certain Docker
+  // entrypoints, Windows scheduled tasks) pass OD_DATA_DIR with literal
+  // $HOME or ${HOME} because the variable is never expanded by a shell;
+  // expandHomePrefix turns those (and the ~ shorthand, with both / and \
+  // separators) into os.homedir() before path.resolve runs so launch
+  // surfaces stay consistent.
+  const expanded = expandHomePrefix(raw);
   const resolved = path.isAbsolute(expanded)
     ? expanded
     : path.resolve(projectRoot, expanded);
@@ -4038,6 +4050,7 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
 
     let child;
     let acpSession = null;
+    let writePromptToChildStdin = false;
     try {
       // Prompt delivery via stdin is now the universal default. This bypasses
       // both the cmd.exe 8KB limit and the CreateProcess 32KB limit.
@@ -4088,7 +4101,7 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
             );
           }
         });
-        child.stdin.end(composed, 'utf8');
+        writePromptToChildStdin = true;
       }
     } catch (err) {
       revokeToolToken('child_exit');
@@ -4319,6 +4332,9 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
           : 'failed';
       design.runs.finish(run, status, code, signal);
     });
+    if (writePromptToChildStdin && child.stdin) {
+      child.stdin.end(composed, 'utf8');
+    }
   };
 
   orbitService.setRunHandler(async ({ trigger, startedAt, prompt, template }) => {
@@ -4506,6 +4522,133 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
     design.runs.start(run, () => startChatRun(req.body || {}, run));
   });
 
+  // ---- Connection tests (single-shot JSON; no SSE) ------------------------
+  // Settings dialog uses these to verify a config works without sending a
+  // real chat. Always return HTTP 200 with `ok: false` on upstream-caused
+  // failures so the web layer can render a categorized inline status without
+  // unwrapping nested error envelopes; real 4xx/5xx here mean a malformed
+  // request or daemon bug.
+  app.post('/api/test/connection', async (req, res) => {
+    const controller = new AbortController();
+    const abortIfRequestAborted = () => {
+      if ((req.aborted || !req.complete) && !res.writableEnded) {
+        controller.abort();
+      }
+    };
+    const abortIfResponseClosed = () => {
+      if (!res.writableEnded) controller.abort();
+    };
+    req.on('close', abortIfRequestAborted);
+    res.on('close', abortIfResponseClosed);
+    const body = req.body || {};
+    try {
+      if (body.mode === 'provider') {
+        const protocol = body.protocol;
+        if (
+          typeof protocol !== 'string' ||
+          !['anthropic', 'openai', 'azure', 'google'].includes(protocol)
+        ) {
+          return sendApiError(
+            res,
+            400,
+            'BAD_REQUEST',
+            'protocol must be one of anthropic|openai|azure|google',
+          );
+        }
+        if (
+          typeof body.baseUrl !== 'string' ||
+          typeof body.apiKey !== 'string' ||
+          typeof body.model !== 'string' ||
+          !body.baseUrl.trim() ||
+          !body.apiKey.trim() ||
+          !body.model.trim()
+        ) {
+          return sendApiError(
+            res,
+            400,
+            'BAD_REQUEST',
+            'baseUrl, apiKey, and model are required',
+          );
+        }
+        try {
+          const result = await testProviderConnection({
+            protocol,
+            baseUrl: body.baseUrl,
+            apiKey: body.apiKey,
+            model: body.model,
+            apiVersion:
+              typeof body.apiVersion === 'string' ? body.apiVersion : undefined,
+            signal: controller.signal,
+          });
+          return res.json(result);
+        } catch (err) {
+          console.warn(
+            `[test:provider] uncaught: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return sendApiError(res, 500, 'INTERNAL', 'Connection test failed');
+        }
+      }
+
+      if (body.mode === 'agent') {
+        if (typeof body.agentId !== 'string' || !body.agentId.trim()) {
+          return sendApiError(res, 400, 'BAD_REQUEST', 'agentId is required');
+        }
+        try {
+          const def = getAgentDef(body.agentId);
+          const testStart = Date.now();
+          const safeModel =
+            def && typeof body.model === 'string'
+              ? isKnownModel(def, body.model)
+                ? body.model
+                : sanitizeCustomModel(body.model)
+              : undefined;
+          if (def && typeof body.model === 'string' && body.model.trim() && !safeModel) {
+            return res.json({
+              ok: false,
+              kind: 'invalid_model_id',
+              latencyMs: Date.now() - testStart,
+              model: body.model.trim(),
+              agentName: def.name,
+              detail: 'Invalid custom model id. Use a model id that starts with a letter or number and contains no spaces.',
+            });
+          }
+          const safeReasoning =
+            def &&
+            typeof body.reasoning === 'string' &&
+            Array.isArray(def.reasoningOptions)
+              ? (def.reasoningOptions.find((r) => r.id === body.reasoning)?.id ?? undefined)
+              : undefined;
+          const result = await testAgentConnection({
+            agentId: body.agentId,
+            model: safeModel ?? undefined,
+            reasoning: safeReasoning,
+            agentCliEnv:
+              body.agentCliEnv && typeof body.agentCliEnv === 'object'
+                ? body.agentCliEnv
+                : undefined,
+            signal: controller.signal,
+          });
+          return res.json(result);
+        } catch (err) {
+          console.warn(
+            `[test:agent] uncaught: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return sendApiError(res, 500, 'INTERNAL', 'Agent test failed');
+        }
+      }
+
+      return sendApiError(
+        res,
+        400,
+        'BAD_REQUEST',
+        'mode must be one of provider|agent',
+      );
+    } finally {
+      req.off('close', abortIfRequestAborted);
+      res.off('close', abortIfResponseClosed);
+    }
+  });
+
   // ---- API Proxy (SSE) for API-compatible endpoints ------------------------
   // Browser → daemon → external API. Avoids CORS issues with third-party
   // providers. This keeps BYOK setup zero-config for local users at the cost of
@@ -4515,28 +4658,7 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
     text.replace(/Bearer [A-Za-z0-9_\-.+/=]+/g, 'Bearer [REDACTED]');
 
   const validateExternalApiBaseUrl = (baseUrl) => {
-    let parsed;
-    try {
-      parsed = new URL(baseUrl.replace(/\/+$/, ''));
-    } catch {
-      return { error: 'Invalid baseUrl' };
-    }
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return { error: 'Only http/https allowed' };
-    }
-    const hostname = parsed.hostname.toLowerCase();
-    const isLoopback =
-      ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
-    if (
-      !isLoopback &&
-      (hostname.startsWith('169.254.') ||
-        hostname.startsWith('10.') ||
-        /^192\.168\./.test(hostname) ||
-        /^172\.(1[6-9]|2\d|3[01])\./.test(hostname))
-    ) {
-      return { error: 'Internal IPs blocked', forbidden: true };
-    }
-    return { parsed };
+    return validateBaseUrl(baseUrl);
   };
 
   const proxyErrorCode = (status) => {
