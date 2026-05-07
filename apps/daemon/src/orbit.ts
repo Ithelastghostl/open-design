@@ -59,6 +59,7 @@ export type OrbitRunHandler = (request: {
   trigger: 'manual' | 'scheduled';
   startedAt: string;
   prompt: string;
+  systemPrompt: string;
   template: OrbitTemplateSelection | null;
 }) => Promise<OrbitRunHandlerStart>;
 
@@ -70,6 +71,18 @@ export function formatLocalProjectTimestamp(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+function formatLocalOrbitPromptTimestamp(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  const timeZoneName = new Intl.DateTimeFormat(undefined, { timeZoneName: 'shortOffset' })
+    .formatToParts(date)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}${timeZoneName ? ` (${timeZoneName})` : ''}`;
 }
 
 export type OrbitTemplateResolver = (skillId: string) => Promise<OrbitTemplateSelection | null>;
@@ -179,6 +192,20 @@ function renderMarkdown(summary: Omit<OrbitActivitySummary, 'markdown'>): string
 }
 
 export function buildOrbitPrompt(now = new Date(), template?: OrbitTemplateSelection | null): string {
+  const end = formatLocalOrbitPromptTimestamp(now);
+  const start = formatLocalOrbitPromptTimestamp(new Date(now.getTime() - 24 * 60 * 60_000));
+  const lines = [
+    'Create today\'s Orbit daily digest as a Live Artifact.',
+    '',
+    `Use my connected work data from ${start} through ${end}.`,
+  ];
+  if (template) {
+    lines.push('', `Use the selected Orbit template: ${template.name}.`);
+  }
+  return lines.join('\n');
+}
+
+export function buildOrbitSystemPrompt(now = new Date(), template?: OrbitTemplateSelection | null): string {
   const end = now.toISOString();
   const start = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
   const lines = [
@@ -310,8 +337,17 @@ export class OrbitService {
     const template = this.config.templateSkillId && this.templateResolver
       ? await this.templateResolver(this.config.templateSkillId).catch(() => null)
       : null;
-    const prompt = buildOrbitPrompt(new Date(startedAt), template);
-    const handlerStart = await this.runHandler({ runId, trigger, startedAt, prompt, template });
+    const now = new Date(startedAt);
+    const prompt = buildOrbitPrompt(now, template);
+    const systemPrompt = buildOrbitSystemPrompt(now, template);
+    const handlerStart = await this.runHandler({
+      runId,
+      trigger,
+      startedAt,
+      prompt,
+      systemPrompt,
+      template,
+    });
 
     this.inflightProjectId = handlerStart.projectId;
     this.inflightAgentRunId = handlerStart.agentRunId;

@@ -4748,7 +4748,13 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
     }
   };
 
-  orbitService.setRunHandler(async ({ trigger, startedAt, prompt, template }) => {
+  orbitService.setRunHandler(async ({
+    trigger,
+    startedAt,
+    prompt,
+    systemPrompt,
+    template,
+  }) => {
     // Each Orbit run gets its own project so the conversation, messages, and
     // live artifact are isolated. The handler does the synchronous prep here
     // (insert project/conversation/run rows, kick off the chat run) and
@@ -4847,6 +4853,7 @@ export async function startServer({ port = 7456, host = process.env.OD_BIND_HOST
       message: prompt,
       systemPrompt: [
         renderOrbitTemplateSystemPrompt(template),
+        systemPrompt,
         'You are Orbit, an autonomous activity-summary agent inside Open Design.',
         'You must discover connectors and connector tools yourself through the OD CLI; the daemon has not chosen tools for you.',
         'You must create and register a Live Artifact as the final deliverable. Do not merely describe what you would do.',

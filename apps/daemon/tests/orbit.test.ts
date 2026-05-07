@@ -6,12 +6,53 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildOrbitPrompt,
+  buildOrbitSystemPrompt,
   OrbitService,
   renderOrbitTemplateSystemPrompt,
+  type OrbitRunHandler,
   type OrbitTemplateSelection,
 } from '../src/orbit.js';
 
+function formatExpectedLocalOrbitPromptTimestamp(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  const timeZoneName = new Intl.DateTimeFormat(undefined, { timeZoneName: 'shortOffset' })
+    .formatToParts(date)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}${timeZoneName ? ` (${timeZoneName})` : ''}`;
+}
+
 describe('buildOrbitPrompt', () => {
+  it('keeps the user-visible Orbit prompt concise', () => {
+    const template: OrbitTemplateSelection = {
+      id: 'orbit-general',
+      name: 'orbit-general',
+      examplePrompt: 'Render the editorial bento dashboard.',
+      dir: path.join('/repo', 'skills', 'orbit-general'),
+      body: 'Open and mirror the shipped `example.html` before writing output. Use exclusively the canvas tokens.',
+      designSystemRequired: false,
+    };
+
+    const now = new Date('2026-05-06T15:32:52.361Z');
+    const start = new Date(now.getTime() - 24 * 60 * 60_000);
+    const prompt = buildOrbitPrompt(now, template);
+
+    expect(prompt).toContain('Create today\'s Orbit daily digest as a Live Artifact.');
+    expect(prompt).toContain(
+      `Use my connected work data from ${formatExpectedLocalOrbitPromptTimestamp(start)} through ${formatExpectedLocalOrbitPromptTimestamp(now)}.`,
+    );
+    expect(prompt).not.toContain('2026-05-05T15:32:52.361Z');
+    expect(prompt).toContain('Use the selected Orbit template: orbit-general.');
+    expect(prompt).not.toContain('DAILY DIGEST CONNECTOR CURATION IS REQUIRED WHEN SUPPORTED');
+    expect(prompt).not.toContain('Selected template example prompt:');
+    expect(prompt).not.toContain('Render the editorial bento dashboard.');
+  });
+});
+
+describe('buildOrbitSystemPrompt', () => {
   it('embeds selected Orbit template instructions and staged side-file guidance', () => {
     const template: OrbitTemplateSelection = {
       id: 'orbit-general',
@@ -22,7 +63,7 @@ describe('buildOrbitPrompt', () => {
       designSystemRequired: false,
     };
 
-    const prompt = buildOrbitPrompt(new Date('2026-05-06T15:32:52.361Z'), template);
+    const prompt = buildOrbitSystemPrompt(new Date('2026-05-06T15:32:52.361Z'), template);
 
     expect(prompt).toContain('Skill id: orbit-general');
     expect(prompt).toContain('Staged root: .od-skills/orbit-general/');
@@ -35,7 +76,7 @@ describe('buildOrbitPrompt', () => {
   });
 
   it('prioritizes curated daily digest connector discovery before fallback listing', () => {
-    const prompt = buildOrbitPrompt(new Date('2026-05-06T15:32:52.361Z'));
+    const prompt = buildOrbitSystemPrompt(new Date('2026-05-06T15:32:52.361Z'));
 
     expect(prompt).toContain('DAILY DIGEST CONNECTOR CURATION IS REQUIRED WHEN SUPPORTED');
     expect(prompt).toContain('tools connectors list --use-case personal_daily_digest --format compact');
@@ -65,6 +106,44 @@ describe('buildOrbitPrompt', () => {
 });
 
 describe('OrbitService', () => {
+  it('passes concise user prompt and detailed system prompt to the run handler', async () => {
+    const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
+    try {
+      const service = new OrbitService(dataDir);
+      const captured: { request?: Parameters<OrbitRunHandler>[0] } = {};
+      service.setRunHandler(async (request) => {
+        captured.request = request;
+        return {
+          projectId: 'project-1',
+          agentRunId: 'agent-1',
+          completion: Promise.resolve({
+            agentRunId: 'agent-1',
+            status: 'succeeded',
+          }),
+        };
+      });
+
+      await service.start('manual');
+
+      expect(captured.request?.prompt).toContain(
+        'Create today\'s Orbit daily digest as a Live Artifact.',
+      );
+      expect(captured.request?.prompt).not.toContain(
+        'DAILY DIGEST CONNECTOR CURATION IS REQUIRED WHEN SUPPORTED',
+      );
+      expect(captured.request?.systemPrompt).toContain(
+        'DAILY DIGEST CONNECTOR CURATION IS REQUIRED WHEN SUPPORTED',
+      );
+      let status = await service.status();
+      for (let attempt = 0; attempt < 10 && !status.lastRun; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        status = await service.status();
+      }
+    } finally {
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it('preserves the default template when config omits the field', async () => {
     const dataDir = await mkdtemp(path.join(os.tmpdir(), 'orbit-test-'));
     try {
