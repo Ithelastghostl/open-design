@@ -185,6 +185,62 @@ test('connectors search supports empty results and keyboard-closeable details', 
   await expect(page.getByTestId('connector-drawer')).toHaveCount(0);
 });
 
+test('saving a Composio key from Settings unlocks the connectors gate immediately', async ({ page }) => {
+  await routeConnectors(page, [
+    {
+      ...CONNECTORS[0]!,
+      status: 'available',
+      auth: { provider: 'composio', configured: false },
+    },
+    {
+      ...CONNECTORS[1]!,
+      status: 'available',
+      accountLabel: undefined,
+      auth: { provider: 'composio', configured: false },
+    },
+  ]);
+
+  let savedComposioBody: unknown = null;
+  await page.route('**/api/connectors/composio/config', async (route) => {
+    savedComposioBody = route.request().postDataJSON();
+    await route.fulfill({ status: 200, body: '{}' });
+  });
+  await page.route('**/api/app-config', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, json: { config: null } });
+      return;
+    }
+    await route.fulfill({ status: 200, body: '{}' });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('entry-tab-connectors').click();
+  await expect(page.getByTestId('connector-gate')).toBeVisible();
+  await expect(page.getByTestId('connectors-search-input')).toBeDisabled();
+
+  await page.getByTestId('connector-gate-action').click();
+  const settingsDialog = page.getByRole('dialog');
+  await expect(settingsDialog).toBeVisible();
+  await settingsDialog.getByPlaceholder('Paste Composio API key').fill('cmp-secret-1234');
+  await settingsDialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(settingsDialog).toHaveCount(0);
+
+  expect(savedComposioBody).toEqual({ apiKey: 'cmp-secret-1234' });
+  await expect(page.getByTestId('connector-gate')).toHaveCount(0);
+  await expect(page.getByTestId('connectors-search-input')).toBeEnabled();
+  await expect(connectorCard(page, 'github')).toBeVisible();
+
+  const savedConfig = await page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, STORAGE_KEY);
+  expect(savedConfig?.composio).toMatchObject({
+    apiKey: '',
+    apiKeyConfigured: true,
+    apiKeyTail: '1234',
+  });
+});
+
 async function routeConnectors(page: Page, connectors: typeof CONNECTORS) {
   await page.route('**/api/connectors', async (route) => {
     await route.fulfill({ json: { connectors } });
