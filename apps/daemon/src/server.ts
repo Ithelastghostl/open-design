@@ -4245,33 +4245,55 @@ export async function startServer({
     readAnalyticsContext,
   };
 
-  // PostHog runtime config — gated on BOTH a server-side key (POSTHOG_KEY)
-  // and the user's opt-in metrics consent (Privacy → "Share usage data").
-  // The web bundle short-circuits when enabled=false so opt-out behaviour
-  // is instant after the user toggles metrics off and reloads.
+  // PostHog runtime config.
+  //
+  // - `enabled` reflects ONLY the user's consent toggle (Privacy → "Share
+  //   usage data"). When false, posthog-js's full autocapture/$pageview/
+  //   $autocapture pipeline must stay off — that's the privacy contract.
+  //
+  // - `key` and `host` are populated whenever the server has a build-time
+  //   POSTHOG_KEY, regardless of consent. The error-tracking module
+  //   (apps/web/src/analytics/error-tracking.ts) reads them to ship
+  //   `$exception` events directly to the ingest endpoint, bypassing the
+  //   consent gate. Product decision: error reports always flow so we
+  //   don't lose ground truth on stability — see the privacy section of
+  //   Settings → Privacy for the user-facing copy.
+  //
+  // - When the build itself has no POSTHOG_KEY (forks, PR builds, OSS
+  //   contributors), `key` and `host` are null and even the error
+  //   pipeline becomes a no-op.
   app.get('/api/analytics/config', async (_req, res) => {
     const baseline = readPublicConfigResponse();
     if (!baseline.enabled) {
+      // No build-time key → nothing to report on, consent or not.
       res.json(baseline);
       return;
     }
     try {
       const appCfg = await readAppConfig(RUNTIME_DATA_DIR);
       const consentGranted = appCfg.telemetry?.metrics === true;
-      if (!consentGranted) {
-        res.json({ enabled: false, key: null, host: null });
-        return;
-      }
       // Echo the installationId so the web client uses the same anonymous
       // id PostHog already saw on prior runs (and that Langfuse uses too).
       const installationId =
         typeof appCfg.installationId === 'string' && appCfg.installationId
           ? appCfg.installationId
           : null;
-      res.json({ ...baseline, installationId });
+      res.json({
+        enabled: consentGranted,
+        key: baseline.key,
+        host: baseline.host,
+        installationId,
+      });
     } catch {
-      // If the config file is unreadable, fail closed — no events.
-      res.json({ enabled: false, key: null, host: null });
+      // If the config file is unreadable, fail closed for analytics but
+      // still let the error tracker run — exception reports are the most
+      // valuable signal in a degraded-state scenario.
+      res.json({
+        enabled: false,
+        key: baseline.key,
+        host: baseline.host,
+        installationId: null,
+      });
     }
   });
 
