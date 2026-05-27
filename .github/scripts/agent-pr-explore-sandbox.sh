@@ -67,6 +67,12 @@ cpus="${OD_SANDBOX_CPUS:-4}"
 memory="${OD_SANDBOX_MEMORY:-8g}"
 expect_timeout_seconds="${OD_EXPECT_TIMEOUT_SECONDS:-1200}"
 expect_cli_version="${OD_EXPECT_CLI_VERSION:-0.1.3}"
+# ACP agent backend expect-cli drives. expect-cli defaults to Claude Code, which
+# is not installed on this runner; we use Codex (authenticated via the runner's
+# CODEX_HOME). Set OD_EXPECT_AGENT="" to fall back to expect-cli's default.
+expect_agent="${OD_EXPECT_AGENT-codex}"
+expect_agent_args=""
+[ -n "$expect_agent" ] && expect_agent_args="-a $expect_agent"
 context_max_bytes="${OD_EXPECT_CONTEXT_MAX_BYTES:-120000}"
 file_patch_max_chars="${OD_EXPECT_FILE_PATCH_MAX_CHARS:-8000}"
 ready_timeout_seconds="${OD_SANDBOX_READY_TIMEOUT_SECONDS:-900}"
@@ -1331,9 +1337,9 @@ PROMPT
 )"
 
 if command -v expect-cli >/dev/null 2>&1; then
-  expect_command=(expect-cli tui --ci --timeout "$((expect_timeout_seconds * 1000))" -u "$expect_url")
+  expect_command=(expect-cli tui --ci $expect_agent_args --timeout "$((expect_timeout_seconds * 1000))" -u "$expect_url")
 elif [ "${OD_ALLOW_NPX_EXPECT_CLI:-0}" = "1" ] && command -v npx >/dev/null 2>&1; then
-  expect_command=(npx -y "expect-cli@${expect_cli_version}" tui --ci --timeout "$((expect_timeout_seconds * 1000))" -u "$expect_url")
+  expect_command=(npx -y "expect-cli@${expect_cli_version}" tui --ci $expect_agent_args --timeout "$((expect_timeout_seconds * 1000))" -u "$expect_url")
 else
   echo "::error::expect-cli is required on the agent-pr-explore runner. Install expect-cli@${expect_cli_version}, or set OD_ALLOW_NPX_EXPECT_CLI=1 to use the pinned npx fallback."
   exit 1
